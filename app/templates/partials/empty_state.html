@@ -1,0 +1,25 @@
+{# Empty state illustrations for various pages.
+   Usage: {% include 'partials/empty_state.html' with context %}
+   Set variables before including:
+     empty_icon: FA icon class (default: fa-inbox)
+     empty_title: heading text
+     empty_desc: description text
+     empty_action_url: CTA button href (optional)
+     empty_action_text: CTA button text (optional)
+#}
+
+<div class="text-center py-5">
+  <div style="margin:0 auto 16px;width:80px;height:80px;border-radius:50%;background:var(--accent-10,rgba(37,99,235,.1));display:flex;align-items:center;justify-content:center;">
+    <i class="fa-solid {{ empty_icon|default('fa-inbox') }} fa-2x" style="color:var(--accent,#2563eb);"></i>
+  </div>
+  <h5 class="fw-bold">{{ empty_title|default('Nothing here yet') }}</h5>
+  <p class="text-muted mb-3" style="max-width:300px;margin:0 auto;font-size:.88rem;line-height:1.5;">
+    {{ empty_desc|default('Get started by adding your first item.') }}
+  </p>
+  {% if empty_action_url %}
+  <a href="{{ empty_action_url }}" class="btn btn-sm fw-bold text-white" style="background:var(--accent);border-radius:10px;padding:8px 20px;">
+    <i class="fa-solid {{ empty_action_icon|default('fa-plus') }} me-1"></i>
+    {{ empty_action_text|default('Get Started') }}
+  </a>
+  {% endif %}
+</div>

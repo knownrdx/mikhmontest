@@ -1,0 +1,763 @@
+/*
+  Common UI helpers
+  - Flash auto-hide (JS)
+  - Dark mode (body.theme-dark)
+  - Responsive tables
+  - Button / page loading spinners
+*/
+
+:root{
+  /* Theme tokens (light defaults) */
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface2: #f1f5f9;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --shadow: 0 10px 30px rgba(0,0,0,.10);
+
+  /* Accent: overridden by navbar.html inline style when configured */
+  --accent: #2563eb;
+
+  /* Convenient accent tints */
+  --accent-10: rgba(37, 99, 235, 0.10);
+  --accent-18: rgba(37, 99, 235, 0.18);
+}
+
+/* If supported, derive tints from the configured accent automatically */
+@supports (color: color-mix(in srgb, #000 50%, #fff)){
+  :root{
+    --accent-10: color-mix(in srgb, var(--accent) 10%, transparent);
+    --accent-18: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+}
+
+/* Support BOTH legacy class toggle + Bootstrap v5.3 data theme toggle */
+body.theme-dark,
+html[data-bs-theme="dark"]{
+  --bg: #0b1220;
+  --surface: #0f1a2e;
+  --surface2: #162033;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --border: #22314f;
+  --shadow: 0 12px 34px rgba(0,0,0,.45);
+}
+
+body{
+  background: var(--bg);
+  color: var(--text);
+}
+.flash-stack{
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 9999;
+  display: grid;
+  gap: 10px;
+  max-width: 360px;
+}
+.flash-stack .alert{
+  margin: 0;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+
+/* Make Bootstrap cards & common blocks respect theme */
+body.theme-dark .card,
+body.theme-dark .table-container,
+body.theme-dark .stat-banner,
+body.theme-dark .list-group-item,
+html[data-bs-theme="dark"] .card,
+html[data-bs-theme="dark"] .table-container,
+html[data-bs-theme="dark"] .stat-banner,
+html[data-bs-theme="dark"] .list-group-item{
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+body.theme-dark .table thead,
+body.theme-dark .table-light,
+html[data-bs-theme="dark"] .table thead,
+html[data-bs-theme="dark"] .table-light{
+  background: rgba(255,255,255,.06) !important;
+  color: var(--text) !important;
+}
+
+body.theme-dark .table,
+body.theme-dark .table td,
+body.theme-dark .table th,
+html[data-bs-theme="dark"] .table,
+html[data-bs-theme="dark"] .table td,
+html[data-bs-theme="dark"] .table th{
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+body.theme-dark .text-muted,
+html[data-bs-theme="dark"] .text-muted{ color: var(--muted) !important; }
+
+body.theme-dark .section-title,
+html[data-bs-theme="dark"] .section-title{ color: var(--text) !important; }
+
+/* Flash auto-hide animation (navbar renders Bootstrap alerts) */
+.flash-auto.hide{
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity .25s ease, transform .25s ease;
+}
+
+/* Responsive tables helper */
+.table-responsive{ -webkit-overflow-scrolling: touch; }
+
+/* For non-bootstrap tables */
+.table-scroll{
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Loading spinners */
+.btn-spinner{
+  display: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,.35);
+  border-top-color: rgba(255,255,255,1);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+  margin-left: 8px;
+  vertical-align: -2px;
+}
+
+/* for light buttons (outline etc) */
+.btn-outline-light .btn-spinner,
+.btn-outline-dark .btn-spinner,
+.btn-outline-primary .btn-spinner,
+.btn-outline-info .btn-spinner,
+.btn-outline-danger .btn-spinner{
+  border-color: var(--border);
+  border-top-color: var(--text);
+}
+
+.btn-loading{ pointer-events: none; }
+.btn-loading .btn-spinner{ display: inline-block; }
+.btn-loading .btn-text{ opacity: .8; }
+
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
+/* Full page loader (optional) */
+.page-loader{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.25);
+  display: grid;
+  place-items: center;
+  z-index: 9998;
+}
+
+.page-loader[hidden]{ display:none; }
+
+.page-loader .loader{
+  width: 46px;
+  height: 46px;
+  border: 3px solid var(--border);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+  box-shadow: var(--shadow);
+  background: transparent;
+}
+
+
+/* =========================
+   Fixed Top Navbar spacing
+========================= */
+body{padding-top:0;}
+body.has-navbar{padding-top:72px;}
+
+/* =========================
+   Navbar + Icon animations
+========================= */
+.navbar{
+  animation: navSlideDown .45s ease-out;
+}
+@keyframes navSlideDown{
+  from{ opacity:0; transform: translateY(-12px); }
+  to{ opacity:1; transform: translateY(0); }
+}
+
+/* underline hover */
+.navbar .nav-link{
+  position: relative;
+  transition: color .25s ease;
+}
+.navbar .nav-link::after{
+  content:"";
+  position:absolute;
+  left: 12%;
+  bottom: 4px;
+  width:0;
+  height:2px;
+  background: var(--accent);
+  transition: width .3s ease;
+}
+.navbar .nav-link:hover::after,
+.navbar .nav-link.active::after{
+  width:76%;
+}
+
+/* icon animation */
+.nav-ico{
+  display:inline-block;
+  transition: transform .2s ease, opacity .2s ease;
+  opacity:.92;
+}
+.nav-link:hover .nav-ico{
+  transform: translateY(-1px) scale(1.08);
+  opacity: 1;
+}
+.dropdown-item:hover .nav-ico{
+  transform: translateX(2px) scale(1.06);
+  opacity: 1;
+}
+.nav-link.active .nav-ico{
+  animation: iconPulse 1.2s ease-in-out infinite;
+  opacity: 1;
+}
+@keyframes iconPulse{
+  0%,100%{ transform: scale(1); }
+  50%{ transform: scale(1.10); }
+}
+
+/* dropdown smooth show (desktop only to avoid mobile blank menu) */
+@media (min-width: 992px){
+  .dropdown-menu{
+    opacity:0;
+    transform: translateY(10px);
+    transition: all .22s ease;
+    display:block;
+    visibility:hidden;
+  }
+  .dropdown-menu.show{
+    opacity:1;
+    transform: translateY(0);
+    visibility:visible;
+  }
+}
+
+/* scroll shadow */
+.navbar.scrolled{
+  box-shadow: 0 6px 20px rgba(0,0,0,.25);
+}
+
+
+/* Brand accent overrides */
+.btn-primary, .bg-primary{
+  background-color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+.btn-outline-primary{
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+.btn-outline-primary:hover{
+  background-color: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+}
+.text-primary{ color: var(--accent) !important; }
+.border-primary{ border-color: var(--accent) !important; }
+.navbar{ border-bottom-color: var(--accent) !important; }
+a{ color: var(--accent); }
+a:hover{ opacity: .92; }
+
+/* Accent helpers */
+.app-accent{ color: var(--accent) !important; }
+.bg-accent{ background: var(--accent) !important; }
+.border-accent{ border-color: var(--accent) !important; }
+
+/* Active nav uses accent tint (works in both themes) */
+.nav-link.active{ background: var(--accent-10); border-radius: .5rem; }
+
+/* Breadcrumb links: accent on light; muted on dark */
+.breadcrumb a{ color: var(--accent); }
+body.theme-dark .breadcrumb a,
+html[data-bs-theme="dark"] .breadcrumb a{ color: var(--muted); }
+
+
+/* --- Mobile bottom navigation (prevents hidden navbar actions) --- */
+@media (max-width: 991.98px){
+  /* Reserve space for the fixed bottom nav so content/cards never hide under it */
+  body.has-navbar { padding-bottom: 88px; }
+}
+
+/* Pages with fixed internal headers (e.g., hotspot_users) should sit below the top navbar */
+body.has-navbar .header-sticky{ top: 72px !important; }
+.mobile-bottom-nav{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1040;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.mobile-bottom-nav .mob-item{
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 12px;
+  min-width: 64px;
+}
+.mobile-bottom-nav .mob-item i{
+  font-size: 18px;
+  display: block;
+  line-height: 1.1;
+}
+.mobile-bottom-nav .mob-item .label{
+  margin-top: 2px;
+  font-size: 11px;
+}
+.mobile-bottom-nav .mob-item.active{
+  color: var(--accent);
+}
+
+
+/* Accent utility helpers (uses BRAND_ACCENT via --accent) */
+.text-accent{color: var(--accent) !important;}
+.bg-accent{background-color: var(--accent) !important;}
+.border-accent{border-color: var(--accent) !important;}
+.btn-accent{
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+}
+.btn-accent:hover{filter: brightness(.95);}
+
+/* App navbar: adapts to light/dark */
+.app-navbar{
+  background: var(--surface) !important;
+  color: var(--text);
+  border-bottom: 2px solid var(--accent);
+}
+.app-navbar .navbar-brand,
+.app-navbar .nav-link,
+.app-navbar .navbar-text{
+  color: var(--text) !important;
+}
+.app-navbar .btn{border-color: var(--border);}
+.app-navbar .btn:hover{background: var(--accent-10);}
+
+/* Sidebar (shared layout) */
+.sidebar{
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-right: 1px solid var(--border);
+}
+.sidebar .sidebar-brand{background: transparent !important;}
+.sidebar .nav-link{color: var(--text) !important;}
+.sidebar .nav-link:hover{background: var(--accent-10) !important;}
+.sidebar .nav-link.active{
+  background: var(--accent-18) !important;
+  border: 1px solid var(--border);
+}
+
+/* ═══════════════════════════════════
+   Dark mode — deep overrides
+═══════════════════════════════════ */
+body.theme-dark,
+html[data-bs-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* p-card (admin/staff panels) */
+body.theme-dark .p-card,
+html[data-bs-theme="dark"] .p-card {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,.25) !important;
+}
+body.theme-dark .p-card-head,
+html[data-bs-theme="dark"] .p-card-head {
+  border-bottom-color: var(--border) !important;
+}
+
+/* Stat cards */
+body.theme-dark .stat-card,
+html[data-bs-theme="dark"] .stat-card {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+body.theme-dark .stat-label,
+html[data-bs-theme="dark"] .stat-label { color: var(--muted) !important; }
+body.theme-dark .stat-sub,
+html[data-bs-theme="dark"] .stat-sub { color: var(--muted) !important; }
+body.theme-dark .stat-value,
+html[data-bs-theme="dark"] .stat-value { color: var(--text) !important; }
+
+/* Router chips */
+body.theme-dark .r-chip,
+html[data-bs-theme="dark"] .r-chip {
+  background: var(--surface2) !important;
+  border-color: var(--border) !important;
+}
+
+/* Dropdown menus */
+body.theme-dark .dropdown-menu,
+html[data-bs-theme="dark"] .dropdown-menu {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4) !important;
+}
+body.theme-dark .dropdown-item,
+html[data-bs-theme="dark"] .dropdown-item {
+  color: var(--text) !important;
+}
+body.theme-dark .dropdown-item:hover,
+body.theme-dark .dropdown-item:focus,
+html[data-bs-theme="dark"] .dropdown-item:hover,
+html[data-bs-theme="dark"] .dropdown-item:focus {
+  background: var(--accent-10) !important;
+  color: var(--text) !important;
+}
+body.theme-dark .dropdown-item.active,
+html[data-bs-theme="dark"] .dropdown-item.active {
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+body.theme-dark .dropdown-header,
+html[data-bs-theme="dark"] .dropdown-header {
+  color: var(--muted) !important;
+}
+
+/* Form inputs */
+body.theme-dark .form-control,
+body.theme-dark .form-select,
+html[data-bs-theme="dark"] .form-control,
+html[data-bs-theme="dark"] .form-select {
+  background: var(--surface2) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+body.theme-dark .form-control::placeholder,
+html[data-bs-theme="dark"] .form-control::placeholder {
+  color: var(--muted) !important;
+}
+body.theme-dark .input-group-text,
+html[data-bs-theme="dark"] .input-group-text {
+  background: var(--surface) !important;
+  color: var(--muted) !important;
+  border-color: var(--border) !important;
+}
+
+/* Modals */
+body.theme-dark .modal-content,
+html[data-bs-theme="dark"] .modal-content {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+body.theme-dark .modal-header,
+body.theme-dark .modal-footer,
+html[data-bs-theme="dark"] .modal-header,
+html[data-bs-theme="dark"] .modal-footer {
+  border-color: var(--border) !important;
+}
+
+/* Offcanvas */
+body.theme-dark .offcanvas,
+html[data-bs-theme="dark"] .offcanvas {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+
+/* Income card */
+body.theme-dark .income-card,
+html[data-bs-theme="dark"] .income-card {
+  background: var(--accent-10) !important;
+}
+
+/* fl label */
+body.theme-dark .fl,
+html[data-bs-theme="dark"] .fl { color: var(--muted) !important; }
+
+/* lf-pill (log filters) */
+body.theme-dark .lf-pill,
+html[data-bs-theme="dark"] .lf-pill {
+  color: var(--muted) !important;
+  border-color: var(--border) !important;
+}
+body.theme-dark .lf-pill:hover,
+body.theme-dark .lf-pill.active,
+html[data-bs-theme="dark"] .lf-pill:hover,
+html[data-bs-theme="dark"] .lf-pill.active {
+  background: rgba(99,102,241,.15) !important;
+  border-color: rgba(99,102,241,.35) !important;
+  color: #a5b4fc !important;
+}
+
+/* Form check labels */
+body.theme-dark .form-check-label,
+html[data-bs-theme="dark"] .form-check-label { color: var(--text) !important; }
+
+/* Router carousel dots in dark */
+body.theme-dark .r-dot,
+html[data-bs-theme="dark"] .r-dot { opacity: .9; }
+
+/* Permission section bg */
+body.theme-dark [style*="background:var(--surface2"],
+html[data-bs-theme="dark"] [style*="background:var(--surface2"] {
+  background: var(--surface2) !important;
+  border-color: var(--border) !important;
+}
+
+/* data-table in dark */
+body.theme-dark .data-table th,
+html[data-bs-theme="dark"] .data-table th { color: var(--muted) !important; }
+body.theme-dark .data-table td,
+html[data-bs-theme="dark"] .data-table td { color: var(--text) !important; }
+
+/* Log table sticky header */
+body.theme-dark thead[style*="sticky"],
+html[data-bs-theme="dark"] thead[style*="sticky"] { background: var(--surface2) !important; }
+
+/* Btn outlines */
+body.theme-dark .btn-outline-secondary,
+html[data-bs-theme="dark"] .btn-outline-secondary {
+  color: var(--muted) !important;
+  border-color: var(--border) !important;
+}
+body.theme-dark .btn-outline-secondary:hover,
+html[data-bs-theme="dark"] .btn-outline-secondary:hover {
+  background: var(--accent-10) !important;
+  color: var(--text) !important;
+}
+body.theme-dark .btn-outline-dark,
+html[data-bs-theme="dark"] .btn-outline-dark {
+  color: var(--muted) !important;
+  border-color: var(--border) !important;
+}
+
+/* QA buttons in dark */
+body.theme-dark .qa,
+html[data-bs-theme="dark"] .qa { color: var(--text); }
+
+/* Toast & border-top sections */
+body.theme-dark .border-top,
+body.theme-dark .border-bottom,
+html[data-bs-theme="dark"] .border-top,
+html[data-bs-theme="dark"] .border-bottom {
+  border-color: var(--border) !important;
+}
+
+/* progress bars in dark */
+body.theme-dark .prog,
+html[data-bs-theme="dark"] .prog { background: rgba(255,255,255,.08) !important; }
+
+/* router-pill for sub-admin */
+body.theme-dark .router-pill,
+html[data-bs-theme="dark"] .router-pill {
+  background: rgba(37,99,235,.12) !important;
+  border-color: rgba(37,99,235,.25) !important;
+}
+
+/* QA-action cards */
+body.theme-dark .qa-action,
+html[data-bs-theme="dark"] .qa-action { opacity: .95; }
+
+
+/* ═══════════════════════════════════════════════════════
+   Modern UI Enhancements v1.5
+═══════════════════════════════════════════════════════ */
+
+/* --- Page entrance stagger --- */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.stat-card, .p-card, .user-card {
+  animation: fadeSlideUp .4s ease-out both;
+}
+.stat-card:nth-child(1) { animation-delay: .04s; }
+.stat-card:nth-child(2) { animation-delay: .08s; }
+.stat-card:nth-child(3) { animation-delay: .12s; }
+.p-card:nth-child(1) { animation-delay: .06s; }
+.p-card:nth-child(2) { animation-delay: .12s; }
+.p-card:nth-child(3) { animation-delay: .18s; }
+
+/* --- Stat card glass effect --- */
+.stat-card {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: -50%; right: -50%;
+  width: 100%; height: 100%;
+  background: radial-gradient(circle, rgba(37,99,235,.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+html[data-bs-theme="dark"] .stat-card::before {
+  background: radial-gradient(circle, rgba(37,99,235,.06) 0%, transparent 70%);
+}
+
+/* --- p-card polish --- */
+.p-card {
+  transition: box-shadow .25s ease, border-color .25s ease;
+}
+.p-card-head {
+  transition: background .2s;
+}
+.p-card-head-title .ph-icon {
+  transition: transform .2s ease;
+}
+.p-card:hover .p-card-head-title .ph-icon {
+  transform: scale(1.08);
+}
+
+/* --- Smooth table row hover --- */
+.data-table tbody tr {
+  transition: background .15s ease;
+}
+
+/* --- Badge micro-animation --- */
+.p-badge {
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.p-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,.08);
+}
+
+/* --- Log filter pills modern --- */
+.lf-pill {
+  transition: all .2s cubic-bezier(.4,0,.2,1);
+  backdrop-filter: blur(4px);
+}
+.lf-pill:active { transform: scale(.95); }
+
+/* --- Responsive Log Cards (mobile) --- */
+@media (max-width: 767px) {
+  .log-table-wrap table { display: none !important; }
+  .log-table-wrap .log-mobile-cards { display: block !important; }
+}
+@media (min-width: 768px) {
+  .log-table-wrap .log-mobile-cards { display: none !important; }
+}
+
+.log-mobile-cards {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.log-m-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px 12px 18px;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow .2s, transform .15s;
+}
+.log-m-card:active { transform: scale(.98); box-shadow: 0 0 0 2px var(--accent-10, rgba(37,99,235,.1)); }
+.log-m-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  border-radius: 4px 0 0 4px;
+}
+.log-m-card.lmc-login::before    { background: linear-gradient(180deg, #16a34a, #059669); }
+.log-m-card.lmc-logout::before   { background: linear-gradient(180deg, #94a3b8, #64748b); }
+.log-m-card.lmc-voucher::before  { background: linear-gradient(180deg, #3b82f6, #2563eb); }
+.log-m-card.lmc-delete::before   { background: linear-gradient(180deg, #ef4444, #dc2626); }
+.log-m-card.lmc-mac::before      { background: linear-gradient(180deg, #f59e0b, #d97706); }
+.log-m-card.lmc-permission::before { background: linear-gradient(180deg, #a78bfa, #8b5cf6); }
+.log-m-card.lmc-create::before   { background: linear-gradient(180deg, #34d399, #059669); }
+.log-m-card.lmc-fail::before     { background: linear-gradient(180deg, #f87171, #ef4444); }
+.log-m-card.lmc-impersonate::before { background: linear-gradient(180deg, #c084fc, #a855f7); }
+.log-m-card.lmc-other::before    { background: linear-gradient(180deg, #818cf8, #6366f1); }
+
+.log-m-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.log-m-user {
+  font-weight: 700;
+  font-size: .78rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface2);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.log-m-time {
+  font-size: .6rem;
+  color: var(--muted);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  white-space: nowrap;
+  opacity: .7;
+}
+.log-m-action {
+  margin-bottom: 4px;
+}
+.log-m-details {
+  font-size: .73rem;
+  color: var(--muted);
+  line-height: 1.45;
+  word-break: break-word;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+html[data-bs-theme="dark"] .log-m-card {
+  background: var(--surface2);
+  border-color: var(--border);
+}
+
+/* --- Better mobile user table --- */
+@media (max-width: 767px) {
+  .data-table td { padding: 6px 8px !important; }
+  .data-table td:first-child { padding-left: 12px !important; }
+  .qa { padding: 2px 6px !important; font-size: .66rem !important; }
+  .p-badge { font-size: .54rem !important; padding: 1px 5px !important; }
+}
+
+/* --- Smooth scroll for log containers --- */
+.log-table-wrap > div { scroll-behavior: smooth; }
+.log-table-wrap > div::-webkit-scrollbar { width: 5px; }
+.log-table-wrap > div::-webkit-scrollbar-track { background: transparent; }
+.log-table-wrap > div::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+.log-table-wrap > div::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* --- Pulse for online indicators --- */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .6; transform: scale(.85); }
+}
+.pulse-online {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* --- Avatar button: hide Bootstrap dropdown caret --- */
+.dropdown-toggle-no-caret::after {
+  display: none !important;
+}
+.dropdown-toggle-no-caret {
+  cursor: pointer;
+  border-radius: 50% !important;
+  transition: opacity .2s;
+}
+.dropdown-toggle-no-caret:hover { opacity: .85; }

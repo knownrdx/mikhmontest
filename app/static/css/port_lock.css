@@ -1,0 +1,282 @@
+/* =============================================
+   PORT LOCK / UNLOCK PAGE
+   ============================================= */
+
+.pl-card {
+  max-width: 850px;
+  margin: 30px auto;
+  border-radius: 16px;
+  border: none;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.12);
+  background: var(--surface);
+  transition: background-color 0.3s ease;
+}
+
+.section-header {
+  border-bottom: 1px solid rgba(160,160,160,0.2);
+  padding-bottom: 20px;
+  margin-bottom: 0;
+}
+
+.router-info-badge {
+  background: var(--accent-10, rgba(37,99,235,.08));
+  color: var(--accent);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── State Box ── */
+.state-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border, #e2e8f0);
+  transition: all .3s ease;
+}
+
+.state-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+  background: rgba(0,0,0,.04);
+  transition: all .3s;
+}
+
+[data-bs-theme="dark"] .state-icon { background: rgba(255,255,255,.06); }
+
+.state-label { font-weight: 700; font-size: 1.05rem; letter-spacing: .5px; }
+.state-desc  { font-size: .8rem; color: var(--muted, #64748b); margin-top: 2px; }
+
+.state-locked   { background: rgba(239,68,68,.04); border-color: rgba(239,68,68,.2); }
+.state-unlocked { background: rgba(16,185,129,.04); border-color: rgba(16,185,129,.2); }
+.state-mixed    { background: rgba(245,158,11,.04); border-color: rgba(245,158,11,.2); }
+.state-error    { background: rgba(239,68,68,.04); border-color: rgba(239,68,68,.2); }
+.state-unknown  { background: rgba(0,0,0,.02); }
+
+/* ── Skeleton ── */
+.skeleton-bar {
+  height: 16px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--border, #e2e8f0) 25%, rgba(0,0,0,.06) 50%, var(--border, #e2e8f0) 75%);
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.5s ease infinite;
+  margin-bottom: 10px;
+}
+
+@keyframes skeletonPulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Bridge Cards ── */
+.bridge-card {
+  border-radius: 14px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--surface, #fff);
+  margin-bottom: 16px;
+  overflow: hidden;
+  transition: box-shadow .2s;
+}
+
+.bridge-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+
+[data-bs-theme="dark"] .bridge-card {
+  background: rgba(255,255,255,.03);
+  border-color: rgba(255,255,255,.08);
+}
+
+.bridge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(0,0,0,.04);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+[data-bs-theme="dark"] .bridge-header { border-color: rgba(255,255,255,.06); }
+
+.br-tag {
+  font-size: .63rem;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+
+.br-tag-hotspot { background: rgba(37,99,235,.08); color: #2563eb; border: 1px solid rgba(37,99,235,.15); }
+.br-tag-free    { background: rgba(16,185,129,.08); color: #059669; border: 1px solid rgba(16,185,129,.15); }
+
+/* ── Port Grid ── */
+.port-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  padding: 14px 18px;
+}
+
+.port-chip {
+  border-radius: 10px;
+  border: 1px solid;
+  padding: 10px 12px;
+  transition: transform .15s;
+}
+
+.port-chip:hover { transform: translateY(-1px); }
+
+.port-name {
+  font-weight: 600;
+  font-size: .82rem;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.port-status-on {
+  font-size: .65rem;
+  font-weight: 600;
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.port-status-off {
+  font-size: .65rem;
+  font-weight: 600;
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Action Buttons ── */
+.btn-lock {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  padding: 18px 42px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  min-width: 180px;
+  transition: all .2s;
+  box-shadow: 0 6px 20px rgba(239,68,68,.25);
+}
+
+.btn-lock:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(239,68,68,.35);
+  color: #fff;
+}
+
+.btn-lock:disabled { opacity: .5; cursor: not-allowed; color: #fff; }
+
+.btn-lock.active-state {
+  box-shadow: 0 0 0 4px rgba(239,68,68,.25), 0 6px 20px rgba(239,68,68,.25);
+}
+
+.btn-unlock {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  padding: 18px 42px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  min-width: 180px;
+  transition: all .2s;
+  box-shadow: 0 6px 20px rgba(16,185,129,.25);
+}
+
+.btn-unlock:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(16,185,129,.35);
+  color: #fff;
+}
+
+.btn-unlock:disabled { opacity: .5; cursor: not-allowed; color: #fff; }
+
+.btn-unlock.active-state {
+  box-shadow: 0 0 0 4px rgba(16,185,129,.25), 0 6px 20px rgba(16,185,129,.25);
+}
+
+/* ── Action Log ── */
+.log-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: .78rem;
+  margin-bottom: 4px;
+  background: rgba(0,0,0,.02);
+  border: 1px solid rgba(0,0,0,.03);
+  animation: slideIn .25s ease;
+}
+
+[data-bs-theme="dark"] .log-entry {
+  background: rgba(255,255,255,.03);
+  border-color: rgba(255,255,255,.05);
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.log-time   { color: var(--muted); font-size: .7rem; min-width: 70px; }
+.log-action { font-weight: 700; font-size: .7rem; text-transform: uppercase; min-width: 60px; }
+.log-detail { color: var(--text); flex: 1; }
+
+/* ── Responsive ── */
+@media (max-width: 576px) {
+  .pl-card { margin: 12px; }
+  .port-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+  .btn-lock, .btn-unlock { min-width: 140px; padding: 14px 24px; font-size: .95rem; }
+}
+
+/* ── Wizard Steps ── */
+.wizard-step {
+  background: rgba(37,99,235,.03);
+  border: 1px solid rgba(37,99,235,.12);
+  transition: all .3s;
+}
+
+.wizard-step-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.wizard-step-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent, #2563eb);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: .85rem;
+  flex-shrink: 0;
+}
+
+[data-bs-theme="dark"] .wizard-step {
+  background: rgba(37,99,235,.06);
+  border-color: rgba(37,99,235,.2);
+}

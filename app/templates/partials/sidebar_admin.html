@@ -1,0 +1,76 @@
+
+{% set ep = current_endpoint %}
+<div class="sidebar-brand px-3 py-3 border-bottom">
+  <div class="fw-bold "><i class="fa-solid fa-user-shield me-2 text-accent"></i>Admin</div>
+  <div class="small text-muted">Full access</div>
+</div>
+
+<ul class="nav flex-column py-2">
+  <li class="nav-item">
+    <a class="nav-link {% if ep=='dashboard.dashboard' %}active{% endif %}" href="{{ url_for('dashboard.dashboard') }}">
+      <i class="fa-solid fa-gauge me-2"></i>Dashboard
+    </a>
+  </li>
+
+  <li class="nav-item">
+    <a class="nav-link {% if ep=='dashboard.admin_users' %}active{% endif %}" href="{{ url_for('dashboard.admin_users') }}">
+      <i class="fa-solid fa-users-gear me-2"></i>All Accounts
+    </a>
+        <a class="nav-link {% if ep=='admin.create_vouchers_page' %}active{% endif %}" href="{{ url_for('admin.create_vouchers_page') }}">
+      <i class="fa-solid fa-ticket me-2"></i>Vouchers
+    </a>
+  </li>
+
+  <li class="nav-item">
+    <a class="nav-link {% if ep=='admin.sales_report' %}active{% endif %}" href="{{ url_for('admin.sales_report') }}">
+      <i class="fa-solid fa-chart-line me-2"></i>Reports
+    </a>
+  </li>
+
+  <li class="nav-item">
+    <a class="nav-link {% if ep=='admin.monitor_router' %}active{% endif %}" href="{{ url_for('admin.monitor_router') }}">
+      <i class="fa-solid fa-wave-square me-2"></i>Monitor
+    </a>
+  </li>
+
+  <li class="nav-item">
+    <a class="nav-link {% if ep=='admin.hotspot_users' %}active{% endif %}" href="{{ url_for('admin.hotspot_users') }}">
+      <i class="fa-solid fa-users me-2"></i>Users
+    </a>
+  </li>
+
+  <li class="nav-item">
+    <a class="nav-link {% if ep=='admin.hotspot_profiles' %}active{% endif %}" href="{{ url_for('admin.hotspot_profiles') }}">
+      <i class="fa-solid fa-layer-group me-2"></i>Profiles
+    </a>
+  </li>
+
+  <li class="nav-item">
+    <a class="nav-link {% if ep=='admin.admin_config' %}active{% endif %}" href="{{ url_for('admin.admin_config') }}">
+      <i class="fa-solid fa-gear me-2"></i>Config
+    </a>
+  </li>
+
+  <li class="nav-item">
+    <a class="nav-link {% if ep=='admin.live_template' %}active{% endif %}" href="{{ url_for('admin.live_template') }}">
+      <i class="fa-solid fa-code me-2"></i>Template Editor
+    </a>
+  </li>
+
+  <li class="nav-item">
+    <a class="nav-link {% if ep=='admin.port_lock_page' %}active{% endif %}" href="{{ url_for('admin.port_lock_page') }}">
+      <i class="fa-solid fa-lock me-2"></i>Port Lock
+    </a>
+  </li>
+
+  <li class="nav-item mt-2">
+    <a class="nav-link {% if ep=='dashboard.profile' %}active{% endif %}" href="{{ url_for('dashboard.profile') }}">
+      <i class="fa-solid fa-id-card me-2"></i>Profile
+    </a>
+  </li>
+</ul>
+<div style="padding:12px 16px;border-top:1px solid var(--border,#e2e8f0);margin-top:8px;">
+  <div style="font-size:.65rem;color:var(--muted,#94a3b8);text-align:center;">
+    {{ BRAND_NAME }} <span style="opacity:.6;">v{{ APP_VERSION }}</span>
+  </div>
+</div>

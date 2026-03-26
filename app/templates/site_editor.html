@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Site Editor — {{ BRAND_NAME }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <style>
+    :root { --accent:#2563eb; --bg:#0f172a; --card:#1e293b; --border:rgba(255,255,255,.08); --text:#e2e8f0; --muted:#94a3b8; }
+    body { background:var(--bg); color:var(--text); font-family:'Inter',-apple-system,sans-serif; }
+    .editor-nav { background:rgba(15,23,42,.95); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); padding:12px 0; position:sticky; top:0; z-index:100; }
+    .editor-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:24px; margin-bottom:20px; }
+    .editor-card h5 { font-size:.92rem; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+    .editor-card h5 i { font-size:.8rem; opacity:.7; }
+    .section-divider { font-size:.65rem; text-transform:uppercase; letter-spacing:1px; color:var(--accent); font-weight:700; margin:28px 0 12px; padding-bottom:6px; border-bottom:1px solid rgba(37,99,235,.2); }
+    .form-label { font-size:.75rem; font-weight:600; color:var(--muted); margin-bottom:3px; }
+    .form-control, .form-select { background:rgba(255,255,255,.04); border:1px solid var(--border); color:var(--text); border-radius:8px; font-size:.85rem; padding:8px 12px; }
+    .form-control:focus { background:rgba(255,255,255,.06); border-color:var(--accent); box-shadow:0 0 0 2px rgba(37,99,235,.15); color:var(--text); }
+    .form-control::placeholder { color:rgba(255,255,255,.2); }
+    textarea.form-control { min-height:70px; }
+    .btn-save { background:linear-gradient(135deg,var(--accent),#8b5cf6); color:#fff; border:none; padding:10px 28px; border-radius:10px; font-weight:700; font-size:.88rem; }
+    .btn-save:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(37,99,235,.3); color:#fff; }
+    .tab-pills { display:flex; gap:4px; flex-wrap:wrap; }
+    .tab-pills .pill { padding:6px 16px; border-radius:8px; font-size:.78rem; font-weight:600; cursor:pointer; background:rgba(255,255,255,.04); border:1px solid var(--border); color:var(--muted); transition:all .2s; text-decoration:none; }
+    .tab-pills .pill:hover, .tab-pills .pill.active { background:rgba(37,99,235,.12); border-color:rgba(37,99,235,.3); color:var(--accent); }
+    .preview-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:6px; font-size:.65rem; font-weight:600; background:rgba(16,185,129,.1); color:#10b981; border:1px solid rgba(16,185,129,.2); }
+    .flash-msg { padding:10px 16px; border-radius:10px; font-size:.82rem; margin-bottom:16px; }
+    .flash-msg.success { background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.2); color:#10b981; }
+    .flash-msg.danger { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.2); color:#ef4444; }
+    .input-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .input-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+    @media(max-width:768px) { .input-row, .input-row-3 { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="editor-nav">
+  <div class="container d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-3">
+      <a href="{{ url_for('dashboard.dashboard') }}" class="text-decoration-none text-muted" style="font-size:.82rem;">
+        <i class="fa-solid fa-arrow-left me-1"></i> Dashboard
+      </a>
+      <span style="color:var(--border);">|</span>
+      <span class="fw-bold" style="font-size:.95rem;"><i class="fa-solid fa-palette me-2" style="color:var(--accent);"></i>Site Editor</span>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <a href="{{ url_for('site.home') }}" target="_blank" class="preview-badge"><i class="fa-solid fa-external-link"></i> Preview Site</a>
+      <button type="submit" form="siteForm" class="btn-save"><i class="fa-solid fa-save me-1"></i> Save All</button>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4" style="max-width:900px;">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="flash-msg {{ cat }}"><i class="fa-solid {{ 'fa-check-circle' if cat == 'success' else 'fa-exclamation-circle' }} me-1"></i> {{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <!-- Tab Pills -->
+  <div class="tab-pills mb-4">
+    <a href="#sec-seo" class="pill active" onclick="showTab('seo',this)"><i class="fa-solid fa-magnifying-glass me-1"></i>SEO</a>
+    <a href="#sec-pages" class="pill" onclick="showTab('pages',this)"><i class="fa-solid fa-file-lines me-1"></i>Pages</a>
+  </div>
+
+  <form id="siteForm" method="POST" action="{{ url_for('admin.site_editor') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- SEO -->
+    <div id="sec-seo" class="tab-content">
+
+      <!-- Basic Meta Tags -->
+      <div class="editor-card">
+        <h5><i class="fa-solid fa-magnifying-glass"></i> SEO &amp; Meta Tags</h5>
+        <div class="mb-3">
+          <label class="form-label">Page Title (<code>&lt;title&gt;</code>)</label>
+          <input class="form-control" name="seo_title" value="{{ site.get('seo_title', '') }}" placeholder="MikroMan — Modern MikroTik Hotspot Manager">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Meta Description</label>
+          <textarea class="form-control" name="seo_description" rows="2" placeholder="Short description shown in search results…">{{ site.get('seo_description', '') }}</textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Meta Keywords (comma-separated)</label>
+          <input class="form-control" name="seo_keywords" value="{{ site.get('seo_keywords', '') }}" placeholder="mikrotik, hotspot, billing, voucher">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Canonical Base URL</label>
+          <input class="form-control" name="canonical_base" value="{{ site.get('canonical_base', '') }}" placeholder="https://yourdomain.com (no trailing slash)">
+          <div class="text-muted mt-1" style="font-size:.68rem;">Used for canonical tags, sitemap, and robots.txt. Leave blank to auto-detect.</div>
+        </div>
+        <div class="section-divider">Open Graph (Social Sharing)</div>
+        <div class="mb-3">
+          <label class="form-label">OG Title</label>
+          <input class="form-control" name="og_title" value="{{ site.get('og_title', '') }}" placeholder="Leave blank to use page title">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">OG Description</label>
+          <textarea class="form-control" name="og_description" rows="2" placeholder="Leave blank to use meta description">{{ site.get('og_description', '') }}</textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">OG Image URL</label>
+          <input class="form-control" name="og_image" value="{{ site.get('og_image', '') }}" placeholder="https://…/og-image.png">
+        </div>
+        <div class="section-divider">Crawling &amp; Verification</div>
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" name="robots" id="robotsIndex" {% if site.get('robots', 'index') != 'noindex' %}checked{% endif %}>
+          <label class="form-check-label small fw-semibold" for="robotsIndex">Allow search engine indexing (robots: index)</label>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Google Site Verification</label>
+          <input class="form-control" name="google_verify" value="{{ site.get('google_verify', '') }}" placeholder="Google verification code">
+        </div>
+      </div>
+
+      <!-- Google Analytics & Search Console -->
+      <div class="editor-card">
+        <h5><i class="fa-brands fa-google"></i> Google Analytics &amp; Search Console</h5>
+        <div class="mb-3">
+          <label class="form-label">Google Analytics Measurement ID</label>
+          <input class="form-control" name="ga_measurement_id" value="{{ site.get('ga_measurement_id', '') }}" placeholder="G-XXXXXXXXXX">
+          <div class="text-muted mt-1" style="font-size:.68rem;">GA4 measurement ID. Script auto-injected into all public pages.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Google Tag Manager ID (optional)</label>
+          <input class="form-control" name="gtm_id" value="{{ site.get('gtm_id', '') }}" placeholder="GTM-XXXXXXX">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Custom Head Script</label>
+          <textarea class="form-control" name="head_script" rows="4" style="font-family:monospace;font-size:.82rem;" placeholder="<!-- Any custom tracking code, e.g. Facebook Pixel, Bing UET, etc. -->">{{ site.get('head_script', '') }}</textarea>
+          <div class="text-muted mt-1" style="font-size:.68rem;">Injected before &lt;/head&gt; on all public pages. Use for any third-party tracking scripts.</div>
+        </div>
+      </div>
+
+      <!-- Sitemap -->
+      <div class="editor-card">
+        <h5><i class="fa-solid fa-sitemap"></i> Sitemap.xml</h5>
+        <p class="text-muted" style="font-size:.78rem;">Auto-generates <code>/sitemap.xml</code> with all public pages. Click below to regenerate.</p>
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <button type="button" class="btn-save" style="padding:8px 20px;font-size:.82rem;" onclick="generateSitemap()">
+            <i class="fa-solid fa-rotate me-1"></i> Generate Sitemap
+          </button>
+          <a href="/sitemap.xml" target="_blank" class="preview-badge"><i class="fa-solid fa-external-link"></i> View sitemap.xml</a>
+          <span id="sitemapStatus" style="font-size:.75rem;color:var(--muted);"></span>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Extra Sitemap URLs (one per line)</label>
+          <textarea class="form-control" name="sitemap_extra_urls" rows="3" style="font-family:monospace;font-size:.82rem;" placeholder="https://yourdomain.com/some-page&#10;https://yourdomain.com/another-page">{{ site.get('sitemap_extra_urls', '') }}</textarea>
+          <div class="text-muted mt-1" style="font-size:.68rem;">Additional URLs to include beyond auto-detected pages. Full URLs required.</div>
+        </div>
+        <div class="form-check form-switch mb-2">
+          <input class="form-check-input" type="checkbox" name="sitemap_include_custom_pages" id="smPages" {% if site.get('sitemap_include_custom_pages', 'on') != 'off' %}checked{% endif %}>
+          <label class="form-check-label small fw-semibold" for="smPages">Include custom pages (/p/…) in sitemap</label>
+        </div>
+      </div>
+
+      <!-- robots.txt Editor -->
+      <div class="editor-card">
+        <h5><i class="fa-solid fa-robot"></i> robots.txt Editor</h5>
+        <p class="text-muted" style="font-size:.78rem;">Edit your <code>/robots.txt</code> file. Use <code>{SITE_URL}</code> as placeholder for your base URL.</p>
+        <div class="mb-3">
+          <textarea class="form-control" name="robots_txt" rows="8" style="font-family:monospace;font-size:.82rem;" placeholder="User-agent: *&#10;Allow: /&#10;Disallow: /admin/&#10;Disallow: /auth/&#10;Sitemap: {SITE_URL}/sitemap.xml">{{ site.get('robots_txt', 'User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /auth/\nDisallow: /dashboard/\n\nSitemap: {SITE_URL}/sitemap.xml') }}</textarea>
+          <div class="text-muted mt-1" style="font-size:.68rem;"><code>{SITE_URL}</code> will be replaced with your canonical base URL.</div>
+        </div>
+        <a href="/robots.txt" target="_blank" class="preview-badge"><i class="fa-solid fa-external-link"></i> View robots.txt</a>
+      </div>
+
+      <!-- Per-Page Meta Tags -->
+      <div class="editor-card">
+        <h5><i class="fa-solid fa-file-pen"></i> Per-Page SEO Meta Tags</h5>
+        <p class="text-muted" style="font-size:.78rem;">Override SEO meta tags for specific pages. These take priority over global settings.</p>
+        {% set page_seo = site.get('page_seo', {}) %}
+        {% set seo_pages = [
+          {'key': 'login', 'label': 'Login Page', 'path': '/login'}
+        ] %}
+        {% for pg in seo_pages %}
+        <div class="mb-3 p-3" style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="fw-semibold" style="font-size:.82rem;">{{ pg.label }} <code style="font-size:.7rem;opacity:.6;">{{ pg.path }}</code></span>
+            <button type="button" class="btn btn-sm" style="font-size:.65rem;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:2px 8px;" onclick="this.closest('.mb-3').querySelector('.seo-fields').style.display=this.closest('.mb-3').querySelector('.seo-fields').style.display==='none'?'block':'none'">
+              <i class="fa-solid fa-chevron-down"></i> Expand
+            </button>
+          </div>
+          <div class="seo-fields" style="display:none;">
+            <div class="input-row mb-2">
+              <div><label class="form-label">Title</label><input class="form-control" name="page_seo_{{ pg.key }}_title" value="{{ page_seo.get(pg.key, {}).get('title', '') if page_seo is mapping else '' }}" placeholder="Custom title for {{ pg.label }}"></div>
+              <div><label class="form-label">Meta Description</label><input class="form-control" name="page_seo_{{ pg.key }}_desc" value="{{ page_seo.get(pg.key, {}).get('desc', '') if page_seo is mapping else '' }}" placeholder="Custom description"></div>
+            </div>
+            <div class="input-row mb-2">
+              <div><label class="form-label">OG Title</label><input class="form-control" name="page_seo_{{ pg.key }}_og_title" value="{{ page_seo.get(pg.key, {}).get('og_title', '') if page_seo is mapping else '' }}" placeholder="Leave blank to use page title"></div>
+              <div><label class="form-label">OG Image</label><input class="form-control" name="page_seo_{{ pg.key }}_og_image" value="{{ page_seo.get(pg.key, {}).get('og_image', '') if page_seo is mapping else '' }}" placeholder="https://…/image.png"></div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+
+        <!-- Custom pages per-page SEO -->
+        {% if custom_pages %}
+        <div class="section-divider">Custom Pages SEO</div>
+        {% for p in custom_pages %}
+        <div class="mb-3 p-3" style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="fw-semibold" style="font-size:.82rem;">{{ p.title }} <code style="font-size:.7rem;opacity:.6;">/p/{{ p.slug }}</code></span>
+            <button type="button" class="btn btn-sm" style="font-size:.65rem;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:2px 8px;" onclick="this.closest('.mb-3').querySelector('.seo-fields').style.display=this.closest('.mb-3').querySelector('.seo-fields').style.display==='none'?'block':'none'">
+              <i class="fa-solid fa-chevron-down"></i> Expand
+            </button>
+          </div>
+          <div class="seo-fields" style="display:none;">
+            <div class="input-row mb-2">
+              <div><label class="form-label">Title</label><input class="form-control" name="page_seo_cp_{{ p.slug }}_title" value="{{ page_seo.get('cp_' ~ p.slug, {}).get('title', '') if page_seo is mapping else '' }}" placeholder="Custom title"></div>
+              <div><label class="form-label">Meta Description</label><input class="form-control" name="page_seo_cp_{{ p.slug }}_desc" value="{{ page_seo.get('cp_' ~ p.slug, {}).get('desc', '') if page_seo is mapping else '' }}" placeholder="Custom description"></div>
+            </div>
+            <div class="input-row mb-2">
+              <div><label class="form-label">OG Title</label><input class="form-control" name="page_seo_cp_{{ p.slug }}_og_title" value="{{ page_seo.get('cp_' ~ p.slug, {}).get('og_title', '') if page_seo is mapping else '' }}" placeholder="OG title"></div>
+              <div><label class="form-label">OG Image</label><input class="form-control" name="page_seo_cp_{{ p.slug }}_og_image" value="{{ page_seo.get('cp_' ~ p.slug, {}).get('og_image', '') if page_seo is mapping else '' }}" placeholder="https://…/image.png"></div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+      </div>
+
+    </div>
+
+    <!-- Bottom save -->
+    <div class="text-end mt-3 mb-5">
+      <button type="submit" class="btn-save"><i class="fa-solid fa-save me-1"></i> Save All Changes</button>
+    </div>
+  </form>
+
+    <!-- PAGES (outside siteForm to avoid nested forms) -->
+    <div id="sec-pages" class="tab-content" style="display:none;">
+      <div class="editor-card">
+        <h5><i class="fa-solid fa-file-lines"></i> Custom Pages</h5>
+        <p class="text-muted" style="font-size:.78rem;">Pages are served at <code>/p/&lt;slug&gt;</code>. You can use raw HTML in the content area.</p>
+
+        {% if custom_pages %}
+        <table class="table table-sm mb-3" style="font-size:.82rem;">
+          <thead><tr><th>Title</th><th>Slug</th><th>Link</th><th></th></tr></thead>
+          <tbody>
+          {% for p in custom_pages %}
+          <tr>
+            <td>{{ p.title }}</td>
+            <td><code>{{ p.slug }}</code></td>
+            <td><a href="{{ url_for('site.custom_page', slug=p.slug) }}" target="_blank" style="color:var(--accent);font-size:.75rem;text-decoration:none;"><i class="fa-solid fa-external-link me-1"></i>Open</a></td>
+            <td class="text-end d-flex gap-1 justify-content-end">
+              <button type="button" class="btn btn-sm" style="background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.2);color:var(--accent);border-radius:6px;font-size:.72rem;"
+                onclick="editPage({{ p | tojson }})">Edit</button>
+              <form method="POST" action="{{ url_for('admin.pages_delete', slug=p.slug) }}" style="display:inline;" onsubmit="return confirm('Delete /{{ p.slug }}?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#ef4444;border-radius:6px;font-size:.72rem;">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted" style="font-size:.78rem;">No custom pages yet.</p>
+        {% endif %}
+
+        <button type="button" class="btn btn-sm mt-2" style="background:rgba(37,99,235,.15);border:1px solid rgba(37,99,235,.3);color:var(--accent);border-radius:8px;" onclick="togglePageForm()">
+          <i class="fa-solid fa-plus me-1"></i> Add / Edit Page
+        </button>
+      </div>
+
+      <!-- Page edit form -->
+      <div id="pageFormWrap" style="display:none;">
+        <div class="editor-card">
+          <h5><i class="fa-solid fa-pen-to-square"></i> <span id="pageFormTitle">Add New Page</span></h5>
+          <form method="POST" action="{{ url_for('admin.pages_save') }}" id="pageForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="input-row mb-3">
+              <div>
+                <label class="form-label">Page Title</label>
+                <input class="form-control" name="title" id="pf_title" required placeholder="VPN Info">
+              </div>
+              <div>
+                <label class="form-label">Slug (URL)</label>
+                <div class="input-group">
+                  <span class="input-group-text" style="background:rgba(255,255,255,.04);border-color:var(--border);color:var(--muted);font-size:.8rem;">/p/</span>
+                  <input class="form-control" name="slug" id="pf_slug" required placeholder="vpn" pattern="[a-z0-9-]+">
+                </div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Meta Description</label>
+              <input class="form-control" name="meta_desc" id="pf_meta" placeholder="Short description for SEO">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">HTML Content</label>
+              <textarea class="form-control" name="content" id="pf_content" rows="12" style="font-family:monospace;font-size:.82rem;" placeholder="<h1>Page title</h1>&#10;<p>Your content here…</p>"></textarea>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn-save"><i class="fa-solid fa-save me-1"></i> Save Page</button>
+              <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--muted);border-radius:8px;" onclick="clearPageForm()">Clear</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+</div>
+
+<script>
+function showTab(id, el) {
+  document.querySelectorAll('.tab-content').forEach(d => d.style.display = 'none');
+  document.getElementById('sec-' + id).style.display = 'block';
+  document.querySelectorAll('.tab-pills .pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// Auto-open tab from query param
+(function(){
+  const tab = new URLSearchParams(location.search).get('tab');
+  if (tab) {
+    const pill = document.querySelector('.tab-pills .pill[href="#sec-' + tab + '"]');
+    if (pill) { pill.click(); }
+  }
+})();
+
+function togglePageForm() {
+  const w = document.getElementById('pageFormWrap');
+  w.style.display = w.style.display === 'none' ? 'block' : 'none';
+}
+
+function editPage(p) {
+  document.getElementById('pf_title').value = p.title || '';
+  document.getElementById('pf_slug').value = p.slug || '';
+  document.getElementById('pf_meta').value = p.meta_desc || '';
+  document.getElementById('pf_content').value = p.content || '';
+  document.getElementById('pageFormTitle').textContent = 'Edit Page: /' + p.slug;
+  document.getElementById('pageFormWrap').style.display = 'block';
+  document.getElementById('pageFormWrap').scrollIntoView({behavior:'smooth'});
+}
+
+function clearPageForm() {
+  document.getElementById('pageForm').reset();
+  document.getElementById('pageFormTitle').textContent = 'Add New Page';
+}
+
+function generateSitemap() {
+  const btn = event.target.closest('button');
+  const status = document.getElementById('sitemapStatus');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Generating…';
+  status.textContent = '';
+  fetch('{{ url_for("admin.generate_sitemap") }}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': document.querySelector('[name=csrf_token]').value}
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      status.innerHTML = '<span style="color:#10b981;"><i class="fa-solid fa-check-circle me-1"></i>' + data.msg + '</span>';
+    } else {
+      status.innerHTML = '<span style="color:#ef4444;"><i class="fa-solid fa-times-circle me-1"></i>' + (data.msg || 'Error') + '</span>';
+    }
+  })
+  .catch(() => {
+    status.innerHTML = '<span style="color:#ef4444;">Network error</span>';
+  })
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-rotate me-1"></i> Generate Sitemap';
+  });
+}
+</script>
+</body>
+</html>

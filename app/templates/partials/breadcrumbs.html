@@ -1,0 +1,16 @@
+{% if breadcrumbs and breadcrumbs|length > 0 %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb small mb-0">
+    {# Hide "Dashboard" crumb everywhere (requested) #}
+    {% for label, link in breadcrumbs %}
+      {% if label and label|string|lower != 'dashboard' %}
+        {% if link %}
+          <li class="breadcrumb-item"><a class="text-decoration-none" href="{{ link }}">{{ label }}</a></li>
+        {% else %}
+          <li class="breadcrumb-item active" aria-current="page">{{ label }}</li>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </ol>
+</nav>
+{% endif %}

@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SEO Manager — {{ BRAND_NAME }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <style>
+    :root { --accent:#2563eb; --bg:#0f172a; --card:#1e293b; --border:rgba(255,255,255,.08); --text:#e2e8f0; --muted:#94a3b8; }
+    body { background:var(--bg); color:var(--text); font-family:'Inter',-apple-system,sans-serif; }
+    .editor-nav { background:rgba(15,23,42,.95); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); padding:12px 0; position:sticky; top:0; z-index:100; }
+    .editor-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:24px; margin-bottom:20px; }
+    .editor-card h5 { font-size:.92rem; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+    .editor-card h5 i { font-size:.8rem; opacity:.7; }
+    .section-divider { font-size:.65rem; text-transform:uppercase; letter-spacing:1px; color:var(--accent); font-weight:700; margin:28px 0 12px; padding-bottom:6px; border-bottom:1px solid rgba(37,99,235,.2); }
+    .form-label { font-size:.75rem; font-weight:600; color:var(--muted); margin-bottom:3px; }
+    .form-control, .form-select { background:rgba(255,255,255,.04); border:1px solid var(--border); color:var(--text); border-radius:8px; font-size:.85rem; padding:8px 12px; }
+    .form-control:focus { background:rgba(255,255,255,.06); border-color:var(--accent); box-shadow:0 0 0 2px rgba(37,99,235,.15); color:var(--text); }
+    .form-control::placeholder { color:rgba(255,255,255,.2); }
+    textarea.form-control { min-height:70px; }
+    .btn-save { background:linear-gradient(135deg,var(--accent),#8b5cf6); color:#fff; border:none; padding:10px 28px; border-radius:10px; font-weight:700; font-size:.88rem; cursor:pointer; }
+    .btn-save:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(37,99,235,.3); color:#fff; }
+    .btn-save:disabled { opacity:.6; transform:none; cursor:not-allowed; }
+    .tab-pills { display:flex; gap:4px; flex-wrap:wrap; }
+    .tab-pills .pill { padding:6px 16px; border-radius:8px; font-size:.78rem; font-weight:600; cursor:pointer; background:rgba(255,255,255,.04); border:1px solid var(--border); color:var(--muted); transition:all .2s; text-decoration:none; }
+    .tab-pills .pill:hover, .tab-pills .pill.active { background:rgba(37,99,235,.12); border-color:rgba(37,99,235,.3); color:var(--accent); }
+    .preview-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:6px; font-size:.65rem; font-weight:600; background:rgba(16,185,129,.1); color:#10b981; border:1px solid rgba(16,185,129,.2); }
+    .flash-msg { padding:10px 16px; border-radius:10px; font-size:.82rem; margin-bottom:16px; }
+    .flash-msg.success { background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.2); color:#10b981; }
+    .flash-msg.danger { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.2); color:#ef4444; }
+    .flash-msg.warning { background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.2); color:#f59e0b; }
+    .input-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .input-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+    @media(max-width:768px) { .input-row, .input-row-3 { grid-template-columns:1fr; } }
+    .status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+    .status-dot.on { background:#10b981; }
+    .status-dot.off { background:#ef4444; }
+    .info-box { background:rgba(37,99,235,.06); border:1px solid rgba(37,99,235,.15); border-radius:10px; padding:14px 18px; font-size:.78rem; color:var(--muted); margin-bottom:16px; }
+    .info-box i { color:var(--accent); }
+    .page-seo-card { background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:12px; }
+    .page-seo-header { display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
+    .page-seo-header:hover { color:var(--accent); }
+    .page-seo-fields { display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
+    .seo-score { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:8px; font-size:.72rem; font-weight:700; }
+    .seo-score.good { background:rgba(16,185,129,.1); color:#10b981; }
+    .seo-score.warn { background:rgba(245,158,11,.1); color:#f59e0b; }
+    .seo-score.bad { background:rgba(239,68,68,.1); color:#ef4444; }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="editor-nav">
+  <div class="container d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-3">
+      <a href="{{ url_for('dashboard.dashboard') }}" class="text-decoration-none text-muted" style="font-size:.82rem;">
+        <i class="fa-solid fa-arrow-left me-1"></i> Dashboard
+      </a>
+      <span style="color:var(--border);">|</span>
+      <span class="fw-bold" style="font-size:.95rem;"><i class="fa-solid fa-magnifying-glass-chart me-2" style="color:var(--accent);"></i>SEO Manager</span>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <a href="{{ url_for('admin.site_editor') }}" class="preview-badge"><i class="fa-solid fa-palette"></i> Site Editor</a>
+      <a href="/site/" target="_blank" class="preview-badge"><i class="fa-solid fa-external-link"></i> Preview Site</a>
+      <button type="submit" form="seoForm" class="btn-save"><i class="fa-solid fa-save me-1"></i> Save</button>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4" style="max-width:900px;">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="flash-msg {{ cat }}"><i class="fa-solid {{ 'fa-check-circle' if cat == 'success' else 'fa-exclamation-circle' }} me-1"></i> {{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <!-- Tab Pills -->
+  <div class="tab-pills mb-4">
+    <a href="#sec-overview" class="pill active" onclick="showTab('overview',this)"><i class="fa-solid fa-gauge me-1"></i>Overview</a>
+    <a href="#sec-meta" class="pill" onclick="showTab('meta',this)"><i class="fa-solid fa-tags me-1"></i>Meta Tags</a>
+    <a href="#sec-sitemap" class="pill" onclick="showTab('sitemap',this)"><i class="fa-solid fa-sitemap me-1"></i>Sitemap</a>
+    <a href="#sec-robots" class="pill" onclick="showTab('robots',this)"><i class="fa-solid fa-robot me-1"></i>robots.txt</a>
+    <a href="#sec-schema" class="pill" onclick="showTab('schema',this)"><i class="fa-solid fa-code me-1"></i>Schema</a>
+    <a href="#sec-analytics" class="pill" onclick="showTab('analytics',this)"><i class="fa-brands fa-google me-1"></i>Analytics</a>
+    <a href="#sec-pages" class="pill" onclick="showTab('pages',this)"><i class="fa-solid fa-file-pen me-1"></i>Page SEO</a>
+  </div>
+
+  <form id="seoForm" method="POST" action="{{ url_for('admin.seo_dashboard') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="save_seo">
+
+    <!-- ═══════════════ OVERVIEW ═══════════════ -->
+    <div id="sec-overview" class="tab-content">
+      <div class="editor-card">
+        <h5><i class="fa-solid fa-gauge"></i> SEO Status Overview</h5>
+        <div class="info-box">
+          <i class="fa-solid fa-circle-info me-1"></i>
+          Quick overview of your SEO configuration. Green means configured, red means missing or disabled.
+        </div>
+
+        <div class="row g-3">
+          <!-- Canonical URL -->
+          <div class="col-md-6">
+            <div class="page-seo-card">
+              <div class="d-flex align-items-center gap-2">
+                <span class="status-dot {{ 'on' if seo.canonical_base else 'off' }}"></span>
+                <span class="fw-semibold" style="font-size:.82rem;">Canonical Base URL</span>
+              </div>
+              <div class="text-muted mt-1" style="font-size:.72rem;">
+                {% if seo.canonical_base %}{{ seo.canonical_base }}{% else %}Not set — auto-detected from request{% endif %}
+              </div>
+            </div>
+          </div>
+          <!-- Sitemap -->
+          <div class="col-md-6">
+            <div class="page-seo-card">
+              <div class="d-flex align-items-center gap-2">
+                <span class="status-dot {{ 'on' if seo.sitemap_enabled else 'off' }}"></span>
+                <span class="fw-semibold" style="font-size:.82rem;">Sitemap</span>
+              </div>
+              <div class="text-muted mt-1" style="font-size:.72rem;">
+                {% if seo.sitemap_enabled %}Enabled — <a href="/site/sitemap.xml" target="_blank" style="color:var(--accent);">View</a>{% else %}Disabled{% endif %}
+              </div>
+            </div>
+          </div>
+          <!-- Google Analytics -->
+          <div class="col-md-6">
+            <div class="page-seo-card">
+              <div class="d-flex align-items-center gap-2">
+                <span class="status-dot {{ 'on' if seo.ga_enabled and seo.ga_measurement_id else 'off' }}"></span>
+                <span class="fw-semibold" style="font-size:.82rem;">Google Analytics</span>
+              </div>
+              <div class="text-muted mt-1" style="font-size:.72rem;">
+                {% if seo.ga_enabled and seo.ga_measurement_id %}{{ seo.ga_measurement_id }}{% else %}Not configured{% endif %}
+              </div>
+            </div>
+          </div>
+          <!-- Schema -->
+          <div class="col-md-6">
+            <div class="page-seo-card">
+              <div class="d-flex align-items-center gap-2">
+                <span class="status-dot {{ 'on' if seo.schema_enabled else 'off' }}"></span>
+                <span class="fw-semibold" style="font-size:.82rem;">Structured Data (JSON-LD)</span>
+              </div>
+              <div class="text-muted mt-1" style="font-size:.72rem;">
+                {% if seo.schema_enabled %}{{ seo.schema_type or 'WebApplication' }}{% else %}Disabled{% endif %}
+              </div>
+            </div>
+          </div>
+          <!-- Search Console -->
+          <div class="col-md-6">
+            <div class="page-seo-card">
+              <div class="d-flex align-items-center gap-2">
+                <span class="status-dot {{ 'on' if seo.gsc_verification else 'off' }}"></span>
+                <span class="fw-semibold" style="font-size:.82rem;">Google Search Console</span>
+              </div>
+              <div class="text-muted mt-1" style="font-size:.72rem;">
+                {% if seo.gsc_verification %}Verified{% else %}Not verified{% endif %}
+              </div>
+            </div>
+          </div>
+          <!-- Bing -->
+          <div class="col-md-6">
+            <div class="page-seo-card">
+              <div class="d-flex align-items-center gap-2">
+                <span class="status-dot {{ 'on' if seo.bing_verification else 'off' }}"></span>
+                <span class="fw-semibold" style="font-size:.82rem;">Bing Webmaster</span>
+              </div>
+              <div class="text-muted mt-1" style="font-size:.72rem;">
+                {% if seo.bing_verification %}Verified{% else %}Not verified{% endif %}
+              </div>
+            </div>
+          </div>
+          <!-- robots.txt -->
+          <div class="col-md-6">
+            <div class="page-seo-card">
+              <div class="d-flex align-items-center gap-2">
+                <span class="status-dot on"></span>
+                <span class="fw-semibold" style="font-size:.82rem;">robots.txt</span>
+              </div>
+              <div class="text-muted mt-1" style="font-size:.72rem;">
+                <a href="/site/robots.txt" target="_blank" style="color:var(--accent);">View robots.txt</a>
+              </div>
+            </div>
+          </div>
+          <!-- Twitter -->
+          <div class="col-md-6">
+            <div class="page-seo-card">
+              <div class="d-flex align-items-center gap-2">
+                <span class="status-dot {{ 'on' if seo.twitter_handle else 'off' }}"></span>
+                <span class="fw-semibold" style="font-size:.82rem;">Twitter Card</span>
+              </div>
+              <div class="text-muted mt-1" style="font-size:.72rem;">
+                {{ seo.twitter_card or 'summary_large_image' }}{% if seo.twitter_handle %} · {{ seo.twitter_handle }}{% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ META TAGS ═══════════════ -->
+    <div id="sec-meta" class="tab-content" style="display:none;">
+      <div class="editor-card">
+        <h5><i class="fa-solid fa-link"></i> Canonical &amp; Base URL</h5>
+        <div class="info-box">
+          <i class="fa-solid fa-circle-info me-1"></i>
+          The canonical base URL is used for sitemap generation, robots.txt, OG tags, and canonical link tags. Set this to your production domain.
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Canonical Base URL</label>
+          <input class="form-control" name="canonical_base" value="{{ seo.canonical_base }}" placeholder="https://yourdomain.com">
+          <div class="text-muted mt-1" style="font-size:.68rem;">No trailing slash. Example: <code>https://mikroman.xyz</code></div>
+        </div>
+      </div>
+
+      <div class="editor-card">
+        <h5><i class="fa-solid fa-globe"></i> Search Engine Verification</h5>
+        <div class="input-row mb-3">
+          <div>
+            <label class="form-label">Google Search Console Verification</label>
+            <input class="form-control" name="gsc_verification" value="{{ seo.gsc_verification }}" placeholder="Google verification code">
+            <div class="text-muted mt-1" style="font-size:.68rem;">Content value from <code>&lt;meta name="google-site-verification"&gt;</code></div>
+          </div>
+          <div>
+            <label class="form-label">Bing Webmaster Verification</label>
+            <input class="form-control" name="bing_verification" value="{{ seo.bing_verification }}" placeholder="Bing verification code">
+            <div class="text-muted mt-1" style="font-size:.68rem;">Content value from <code>&lt;meta name="msvalidate.01"&gt;</code></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="editor-card">
+        <h5><i class="fa-brands fa-twitter"></i> Social / Twitter Card</h5>
+        <div class="input-row mb-3">
+          <div>
+            <label class="form-label">Twitter Card Type</label>
+            <select class="form-select" name="twitter_card">
+              <option value="summary_large_image" {{ 'selected' if seo.twitter_card == 'summary_large_image' }}>summary_large_image</option>
+              <option value="summary" {{ 'selected' if seo.twitter_card == 'summary' }}>summary</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Twitter Handle</label>
+            <input class="form-control" name="twitter_handle" value="{{ seo.twitter_handle }}" placeholder="@yourbrand">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ SITEMAP ═══════════════ -->
+    <div id="sec-sitemap" class="tab-content" style="display:none;">
+      <div class="editor-card">
+        <h5><i class="fa-solid fa-sitemap"></i> Sitemap Configuration</h5>
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" name="sitemap_enabled" id="sitemapEnabled" {% if seo.sitemap_enabled %}checked{% endif %}>
+          <label class="form-check-label small fw-semibold" for="sitemapEnabled">Enable Sitemap</label>
+          <div class="text-muted" style="font-size:.7rem;">Serves auto-generated <code>/sitemap.xml</code></div>
+        </div>
+
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <button type="button" class="btn-save" style="padding:8px 20px;font-size:.82rem;" onclick="generateSitemap()">
+            <i class="fa-solid fa-rotate me-1"></i> Generate Sitemap Now
+          </button>
+          <a href="/site/sitemap.xml" target="_blank" class="preview-badge"><i class="fa-solid fa-external-link"></i> View sitemap.xml</a>
+          <span id="sitemapStatus" style="font-size:.75rem;color:var(--muted);"></span>
+        </div>
+
+        <div class="section-divider">Exclude Paths</div>
+        <div class="mb-3">
+          <label class="form-label">Exclude URL Prefixes (comma-separated)</label>
+          <input class="form-control" name="sitemap_exclude" value="{{ seo.sitemap_exclude }}" placeholder="/auth/,/a/,/dashboard">
+          <div class="text-muted mt-1" style="font-size:.68rem;">URLs starting with these prefixes will be excluded from the sitemap.</div>
+        </div>
+
+        <div class="section-divider">Custom URLs</div>
+        <div class="mb-3">
+          <label class="form-label">Additional Sitemap URLs</label>
+          <textarea class="form-control" name="sitemap_custom_urls" rows="5" style="font-family:monospace;font-size:.82rem;" placeholder="/custom-page|0.7|monthly&#10;https://external.com/page|0.5|yearly&#10;# Lines starting with # are ignored">{{ seo.sitemap_custom_urls }}</textarea>
+          <div class="text-muted mt-1" style="font-size:.68rem;">One per line. Format: <code>URL|priority|changefreq</code> — priority and changefreq are optional.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ ROBOTS.TXT ═══════════════ -->
+    <div id="sec-robots" class="tab-content" style="display:none;">
+      <div class="editor-card">
+        <h5><i class="fa-solid fa-robot"></i> robots.txt Editor</h5>
+        <div class="info-box">
+          <i class="fa-solid fa-circle-info me-1"></i>
+          This file tells search engine crawlers which pages to index and which to skip. Use <code>{SITE_URL}</code> as a placeholder for your canonical base URL.
+        </div>
+        <div class="mb-3">
+          <textarea class="form-control" name="robots_txt" rows="12" style="font-family:monospace;font-size:.82rem;" placeholder="User-agent: *&#10;Allow: /&#10;Disallow: /admin/&#10;Sitemap: {SITE_URL}/sitemap.xml">{{ seo.robots_txt }}</textarea>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+          <a href="/site/robots.txt" target="_blank" class="preview-badge"><i class="fa-solid fa-external-link"></i> View live robots.txt</a>
+          <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--muted);border-radius:8px;font-size:.75rem;" onclick="resetRobots()">
+            <i class="fa-solid fa-arrow-rotate-left me-1"></i> Reset to Default
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ STRUCTURED DATA ═══════════════ -->
+    <div id="sec-schema" class="tab-content" style="display:none;">
+      <div class="editor-card">
+        <h5><i class="fa-solid fa-code"></i> Structured Data (JSON-LD)</h5>
+        <div class="info-box">
+          <i class="fa-solid fa-circle-info me-1"></i>
+          Structured data helps search engines understand your site better and can enable rich snippets in search results.
+        </div>
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" name="schema_enabled" id="schemaEnabled" {% if seo.schema_enabled %}checked{% endif %}>
+          <label class="form-check-label small fw-semibold" for="schemaEnabled">Enable Structured Data</label>
+          <div class="text-muted" style="font-size:.7rem;">Injects JSON-LD schema markup into public pages.</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Schema Type</label>
+          <select class="form-select" name="schema_type">
+            <option value="WebApplication" {{ 'selected' if seo.schema_type == 'WebApplication' }}>WebApplication</option>
+            <option value="SoftwareApplication" {{ 'selected' if seo.schema_type == 'SoftwareApplication' }}>SoftwareApplication</option>
+            <option value="Organization" {{ 'selected' if seo.schema_type == 'Organization' }}>Organization</option>
+            <option value="LocalBusiness" {{ 'selected' if seo.schema_type == 'LocalBusiness' }}>LocalBusiness</option>
+            <option value="Product" {{ 'selected' if seo.schema_type == 'Product' }}>Product</option>
+          </select>
+        </div>
+        <div class="input-row mb-3">
+          <div>
+            <label class="form-label">Name</label>
+            <input class="form-control" name="schema_name" value="{{ seo.schema_name }}" placeholder="{{ BRAND_NAME }}">
+          </div>
+          <div>
+            <label class="form-label">Author / Organization</label>
+            <input class="form-control" name="schema_author" value="{{ seo.schema_author }}" placeholder="Your Company Name">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Description</label>
+          <textarea class="form-control" name="schema_description" rows="2" placeholder="Brief description of your application/business">{{ seo.schema_description }}</textarea>
+        </div>
+
+        <div class="section-divider">Preview</div>
+        <pre id="schemaPreview" style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:16px;font-size:.78rem;color:#10b981;overflow-x:auto;max-height:200px;"></pre>
+      </div>
+    </div>
+
+    <!-- ═══════════════ ANALYTICS ═══════════════ -->
+    <div id="sec-analytics" class="tab-content" style="display:none;">
+      <div class="editor-card">
+        <h5><i class="fa-brands fa-google"></i> Google Analytics (GA4)</h5>
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" name="ga_enabled" id="gaEnabled" {% if seo.ga_enabled %}checked{% endif %}>
+          <label class="form-check-label small fw-semibold" for="gaEnabled">Enable Google Analytics</label>
+          <div class="text-muted" style="font-size:.7rem;">Auto-injects GA4 tracking script into all public pages.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">GA4 Measurement ID</label>
+          <input class="form-control" name="ga_measurement_id" value="{{ seo.ga_measurement_id }}" placeholder="G-XXXXXXXXXX">
+          <div class="text-muted mt-1" style="font-size:.68rem;">Find this in Google Analytics → Admin → Data Streams → your stream.</div>
+        </div>
+      </div>
+
+      <div class="editor-card">
+        <h5><i class="fa-solid fa-code"></i> Custom Head Scripts</h5>
+        <div class="info-box">
+          <i class="fa-solid fa-triangle-exclamation me-1" style="color:#f59e0b;"></i>
+          Raw HTML/JS injected into <code>&lt;head&gt;</code> on all public pages. Use for Facebook Pixel, Bing UET, Hotjar, or any third-party tracking scripts.
+        </div>
+        <div class="mb-3">
+          <textarea class="form-control" name="head_scripts" rows="8" style="font-family:monospace;font-size:.82rem;" placeholder="<!-- Facebook Pixel -->&#10;<script>...</script>&#10;&#10;<!-- Hotjar -->&#10;<script>...</script>">{{ seo.head_scripts }}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom save -->
+    <div class="text-end mt-3 mb-3">
+      <button type="submit" class="btn-save"><i class="fa-solid fa-save me-1"></i> Save SEO Settings</button>
+    </div>
+  </form>
+
+  <!-- ═══════════════ PER-PAGE SEO (separate form) ═══════════════ -->
+  <div id="sec-pages" class="tab-content" style="display:none;">
+    <div class="editor-card">
+      <h5><i class="fa-solid fa-file-pen"></i> Per-Page SEO Meta Tags</h5>
+      <div class="info-box">
+        <i class="fa-solid fa-circle-info me-1"></i>
+        Override SEO meta tags for individual custom pages. These settings take priority over global defaults. Click a page to expand its SEO fields.
+      </div>
+
+      {% if custom_pages %}
+        {% for p in custom_pages %}
+        <div class="page-seo-card">
+          <div class="page-seo-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+            <div>
+              <span class="fw-semibold" style="font-size:.85rem;">{{ p.title }}</span>
+              <code style="font-size:.7rem;opacity:.6;margin-left:8px;">/p/{{ p.slug }}</code>
+              {% if p.get('seo') and (p.seo.get('seo_title') or p.seo.get('meta_desc')) %}
+              <span class="seo-score good ms-2"><i class="fa-solid fa-check"></i> Configured</span>
+              {% else %}
+              <span class="seo-score warn ms-2"><i class="fa-solid fa-minus"></i> Defaults</span>
+              {% endif %}
+            </div>
+            <i class="fa-solid fa-chevron-down" style="font-size:.7rem;opacity:.5;"></i>
+          </div>
+          <div class="page-seo-fields" style="display:none;">
+            <form method="POST" action="{{ url_for('admin.seo_dashboard') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="save_page_meta">
+              <input type="hidden" name="page_slug" value="{{ p.slug }}">
+              {% set ps = p.get('seo', {}) or {} %}
+              <div class="input-row mb-3">
+                <div>
+                  <label class="form-label">SEO Title</label>
+                  <input class="form-control" name="page_seo_title" value="{{ ps.get('seo_title', '') }}" placeholder="Custom title for this page">
+                </div>
+                <div>
+                  <label class="form-label">Meta Description</label>
+                  <input class="form-control" name="page_meta_desc" value="{{ ps.get('meta_desc', '') }}" placeholder="Short description for search results">
+                </div>
+              </div>
+              <div class="input-row mb-3">
+                <div>
+                  <label class="form-label">Meta Keywords</label>
+                  <input class="form-control" name="page_meta_keywords" value="{{ ps.get('meta_keywords', '') }}" placeholder="keyword1, keyword2">
+                </div>
+                <div>
+                  <label class="form-label">Canonical URL</label>
+                  <input class="form-control" name="page_canonical" value="{{ ps.get('canonical', '') }}" placeholder="Leave blank for auto">
+                </div>
+              </div>
+              <div class="section-divider">Open Graph</div>
+              <div class="input-row mb-3">
+                <div>
+                  <label class="form-label">OG Title</label>
+                  <input class="form-control" name="page_og_title" value="{{ ps.get('og_title', '') }}" placeholder="Social share title">
+                </div>
+                <div>
+                  <label class="form-label">OG Description</label>
+                  <input class="form-control" name="page_og_desc" value="{{ ps.get('og_desc', '') }}" placeholder="Social share description">
+                </div>
+              </div>
+              <div class="input-row mb-3">
+                <div>
+                  <label class="form-label">OG Image URL</label>
+                  <input class="form-control" name="page_og_image" value="{{ ps.get('og_image', '') }}" placeholder="https://…/image.png">
+                </div>
+                <div>
+                  <label class="form-label">Robots</label>
+                  <select class="form-select" name="page_robots">
+                    <option value="index, follow" {{ 'selected' if ps.get('robots', 'index, follow') == 'index, follow' }}>index, follow</option>
+                    <option value="noindex, follow" {{ 'selected' if ps.get('robots') == 'noindex, follow' }}>noindex, follow</option>
+                    <option value="index, nofollow" {{ 'selected' if ps.get('robots') == 'index, nofollow' }}>index, nofollow</option>
+                    <option value="noindex, nofollow" {{ 'selected' if ps.get('robots') == 'noindex, nofollow' }}>noindex, nofollow</option>
+                  </select>
+                </div>
+              </div>
+              <button type="submit" class="btn-save" style="padding:8px 20px;font-size:.82rem;">
+                <i class="fa-solid fa-save me-1"></i> Save Page SEO
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-center py-4">
+          <i class="fa-solid fa-file-circle-plus" style="font-size:2rem;opacity:.2;"></i>
+          <p class="text-muted mt-2" style="font-size:.82rem;">No custom pages yet. Create pages in the <a href="{{ url_for('admin.site_editor') }}?tab=pages" style="color:var(--accent);">Site Editor</a> first.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<script>
+function showTab(id, el) {
+  document.querySelectorAll('.tab-content').forEach(d => d.style.display = 'none');
+  document.getElementById('sec-' + id).style.display = 'block';
+  document.querySelectorAll('.tab-pills .pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// Auto-open tab from query param
+(function(){
+  const tab = new URLSearchParams(location.search).get('tab');
+  if (tab) {
+    const pill = document.querySelector('.tab-pills .pill[href="#sec-' + tab + '"]');
+    if (pill) pill.click();
+  }
+})();
+
+// Generate sitemap via AJAX
+function generateSitemap() {
+  const btn = event.target.closest('button');
+  const status = document.getElementById('sitemapStatus');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Generating…';
+  status.textContent = '';
+
+  // First save the form, then generate
+  const formData = new FormData(document.getElementById('seoForm'));
+
+  fetch('{{ url_for("admin.seo_generate_sitemap") }}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': document.querySelector('[name=csrf_token]').value}
+  })
+  .then(r => {
+    if (r.redirected) {
+      // Form-based redirect, reload page
+      window.location.href = r.url;
+      return;
+    }
+    return r.text();
+  })
+  .then(data => {
+    // Since seo_generate_sitemap does a redirect, we just reload
+    window.location.reload();
+  })
+  .catch(() => {
+    status.innerHTML = '<span style="color:#ef4444;">Network error</span>';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-rotate me-1"></i> Generate Sitemap Now';
+  });
+}
+
+// Reset robots.txt to default
+function resetRobots() {
+  if (!confirm('Reset robots.txt to default?')) return;
+  const ta = document.querySelector('[name=robots_txt]');
+  ta.value = 'User-agent: *\nAllow: /\nDisallow: /a/\nDisallow: /auth/\nDisallow: /dashboard/\n\nSitemap: {SITE_URL}/sitemap.xml';
+}
+
+// Schema preview
+function updateSchemaPreview() {
+  const type = document.querySelector('[name=schema_type]')?.value || 'WebApplication';
+  const name = document.querySelector('[name=schema_name]')?.value || '{{ BRAND_NAME }}';
+  const desc = document.querySelector('[name=schema_description]')?.value || '';
+  const author = document.querySelector('[name=schema_author]')?.value || '';
+  const base = document.querySelector('[name=canonical_base]')?.value || window.location.origin;
+
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": type,
+    "name": name || '{{ BRAND_NAME }}',
+    "url": base + "/"
+  };
+  if (desc) schema.description = desc;
+  if (author) schema.author = {"@type": "Organization", "name": author};
+  if (type === 'SoftwareApplication' || type === 'WebApplication') {
+    schema.applicationCategory = "NetworkApplication";
+    schema.operatingSystem = "Web";
+  }
+
+  const el = document.getElementById('schemaPreview');
+  if (el) el.textContent = JSON.stringify(schema, null, 2);
+}
+
+// Update preview on input changes
+document.addEventListener('DOMContentLoaded', function() {
+  updateSchemaPreview();
+  ['schema_type', 'schema_name', 'schema_description', 'schema_author', 'canonical_base'].forEach(function(n) {
+    const el = document.querySelector('[name=' + n + ']');
+    if (el) el.addEventListener('input', updateSchemaPreview);
+    if (el && el.tagName === 'SELECT') el.addEventListener('change', updateSchemaPreview);
+  });
+});
+</script>
+</body>
+</html>

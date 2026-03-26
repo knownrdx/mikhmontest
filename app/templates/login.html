@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — {{ BRAND_NAME }}</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='img/favicon-64.png') }}">
+    <link rel="apple-touch-icon" sizes="256x256" href="{{ url_for('static', filename='img/logo-square-256.png') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/toasts.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+      body {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+        position: relative;
+        overflow: hidden;
+      }
+      body::before {
+        content: '';
+        position: absolute;
+        width: 500px; height: 500px;
+        background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+        opacity: 0.08;
+        top: -150px; right: -100px;
+        border-radius: 50%;
+      }
+      body::after {
+        content: '';
+        position: absolute;
+        width: 400px; height: 400px;
+        background: radial-gradient(circle, #8b5cf6 0%, transparent 70%);
+        opacity: 0.06;
+        bottom: -100px; left: -80px;
+        border-radius: 50%;
+      }
+      .login-wrap {
+        width: 100%;
+        max-width: 420px;
+        padding: 16px;
+        position: relative;
+        z-index: 1;
+        animation: mmCardEntrance .5s ease both;
+      }
+      .login-card {
+        background: rgba(255,255,255,0.97) !important;
+        backdrop-filter: blur(20px) !important;
+        border-radius: 24px !important;
+        border: 1px solid rgba(255,255,255,.15) !important;
+        box-shadow: 0 24px 60px rgba(0,0,0,.35) !important;
+        padding: 36px 32px !important;
+      }
+      @media (prefers-color-scheme: dark) {
+        .login-card {
+          background: rgba(30,41,59,0.95) !important;
+          border-color: rgba(255,255,255,.08) !important;
+        }
+        .login-card .form-control { background: #0f172a; border-color: #334155; color: #e2e8f0; }
+        .login-card .input-group-text { background: #0f172a; border-color: #334155; color: #64748b; }
+        .login-card .form-label { color: #94a3b8; }
+        .login-card .text-secondary { color: #94a3b8 !important; }
+        .login-card p.text-muted { color: #64748b !important; }
+      }
+      /* Also support explicit dark theme via data attribute */
+      html[data-bs-theme="dark"] .login-card {
+        background: rgba(30,41,59,0.95) !important;
+        border-color: rgba(255,255,255,.08) !important;
+      }
+      html[data-bs-theme="dark"] .login-card .form-control { background: #0f172a; border-color: #334155; color: #e2e8f0; }
+      html[data-bs-theme="dark"] .login-card .input-group-text { background: #0f172a; border-color: #334155; color: #64748b; }
+      html[data-bs-theme="dark"] .login-card .form-label { color: #94a3b8; }
+      html[data-bs-theme="dark"] .login-card .text-secondary { color: #94a3b8 !important; }
+      html[data-bs-theme="dark"] .login-card p.text-muted { color: #64748b !important; }
+      .login-card .logo-wrap {
+        width: 56px; height: 56px; border-radius: 16px;
+        background: linear-gradient(135deg, var(--accent), #8b5cf6);
+        display: inline-flex; align-items: center; justify-content: center;
+        margin-bottom: 16px; box-shadow: 0 4px 16px rgba(37,99,235,.3);
+      }
+      .login-card .logo-wrap i { color: #fff; font-size: 24px; }
+      .login-card .btn-primary {
+        background: linear-gradient(135deg, var(--accent), #8b5cf6) !important;
+        border: none !important;
+        padding: 12px !important;
+        font-weight: 700;
+        font-size: 0.95rem;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 16px rgba(37,99,235,.3);
+      }
+      .login-card .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 24px rgba(37,99,235,.4);
+      }
+      .divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
+      .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(0,0,0,.1); }
+      .divider span { font-size: .75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; }
+    </style>
+    <style>:root{--accent: {{ BRAND_ACCENT|default('#2563eb') }};}</style>
+    <script>
+      /* Apply saved theme */
+      (function(){var t=localStorage.getItem('ui_theme')||localStorage.getItem('admin_theme')||'light';document.documentElement.setAttribute('data-bs-theme',t);})();
+    </script>
+</head>
+<body>
+    <div class="login-wrap">
+        <div class="login-card">
+            <div class="text-center mb-4">
+                <img src="{{ url_for('static', filename='img/mikroman_logo_horizontal.png') }}" alt="{{ BRAND_NAME }}" class="img-fluid mb-2" style="max-height: 52px;">
+                <p class="text-muted small mb-0">Sign in to manage your hotspot</p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show small py-2" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('auth.login', next=next) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ next or '' }}">
+                <div class="mb-3">
+                    <label class="form-label">Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fa-solid fa-user" style="font-size:13px;"></i></span>
+                        <input type="text" name="username" class="form-control" placeholder="Enter username" required autofocus>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fa-solid fa-lock" style="font-size:13px;"></i></span>
+                        <input type="password" name="password" id="loginPass" class="form-control" placeholder="Enter password" required>
+                        <button type="button" class="input-group-text" onclick="togglePass()" style="cursor:pointer;border-radius:0 10px 10px 0;">
+                          <i class="fa-solid fa-eye" id="passEye" style="font-size:13px;"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center justify-content-between mb-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="remember" name="remember">
+                        <label class="form-check-label small" for="remember" style="color:var(--muted);">Remember me</label>
+                    </div>
+                </div>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-right-to-bracket me-2"></i>Sign In
+                    </button>
+                </div>
+            </form>
+
+            <div class="text-center mt-4">
+                <p class="text-muted" style="font-size: 0.7rem;">&copy; {{ BRAND_NAME }} 2026</p>
+            </div>
+        </div>
+    </div>
+
+    {% include 'partials/footer_ads.html' %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function togglePass() {
+  const p = document.getElementById('loginPass');
+  const e = document.getElementById('passEye');
+  if (p.type === 'password') { p.type = 'text'; e.className = 'fa-solid fa-eye-slash'; }
+  else { p.type = 'password'; e.className = 'fa-solid fa-eye'; }
+}
+</script>
+</body>
+</html>

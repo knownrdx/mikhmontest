@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Config</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='img/favicon-64.png') }}">
+    <link rel="apple-touch-icon" sizes="256x256" href="{{ url_for('static', filename='img/logo-square-256.png') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+</head>
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+
+  {% include "partials/navbar.html" %}
+
+  <div class="container py-4">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+      <div>
+        <h4 class="mb-0">Configuration</h4>
+        <div class="text-muted small">Manage router credentials securely (passwords are encrypted; never shown back).</div>
+      </div>
+
+      <form method="POST" class="m-0">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="migrate_encrypt">
+        <button class="btn btn-outline-primary btn-sm">
+          <i class="fa-solid fa-lock me-1"></i> Encrypt legacy passwords
+        </button>
+      </form>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h6 class="mb-3">Add / Update Router</h6>
+        <form method="POST" class="row g-2">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="save_router">
+          <div class="col-md-3">
+            <label class="form-label small">User</label>
+            <select class="form-select form-select-sm" name="user_id" required>
+              <option value="">Select user…</option>
+              {% for u in users %}
+                <option value="{{ u._id }}">{{ u.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small">Router ID (optional)</label>
+            <input class="form-control form-control-sm" name="r_id" placeholder="auto">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small">Name</label>
+            <input class="form-control form-control-sm" name="r_name" placeholder="Router" required>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small">IP/Host:Port</label>
+            <input class="form-control form-control-sm" name="r_ip" placeholder="1.2.3.4:8728" required>
+          </div>
+          <div class="col-md-1">
+            <label class="form-label small">API User</label>
+            <input class="form-control form-control-sm" name="r_user" placeholder="admin" required>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small">API Password</label>
+            <input class="form-control form-control-sm" type="password" name="r_pass" placeholder="set/update">
+            <div class="form-text small">Blank = keep existing password</div>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small">DNS Name</label>
+            <input class="form-control form-control-sm" name="dns_name" placeholder="login.net" value="login.net">
+          </div>
+          <div class="col-md-1">
+            <label class="form-label small">Currency</label>
+            <select name="currency" class="form-select form-select-sm">
+              <option value="AED">AED</option>
+              <option value="USD">USD</option>
+              <option value="BDT">BDT</option>
+              <option value="INR">INR</option>
+              <option value="SAR">SAR</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+              <option value="PKR">PKR</option>
+              <option value="MYR">MYR</option>
+              <option value="IDR">IDR</option>
+              <option value="PHP">PHP</option>
+            </select>
+          </div>
+
+          <div class="col-12 d-flex justify-content-end">
+            <button class="btn btn-success btn-sm">
+              <i class="fa-solid fa-save me-1"></i> Save
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div>
+            <h6 class="mb-0"><i class="fa-solid fa-palette me-2 text-accent"></i>Brand & Gmail Setup</h6>
+            <div class="text-muted small">These settings are stored in database. Restart server after changing mail settings.</div>
+          </div>
+        </div>
+
+        <form method="POST" class="row g-3 mt-1">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="update_app_settings">
+
+          <div class="col-md-6">
+            <label class="form-label small fw-bold">Brand name</label>
+            <input class="form-control" name="brand_name" value="{{ BRAND_NAME }}" readonly disabled>
+<div class="form-text">Brand name is synced from server config (BRAND_NAME) and cannot be changed here.</div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label small fw-bold">Accent color</label>
+            <div class="input-group">
+              <input class="form-control" name="brand_accent" value="{{ (app_settings.brand_accent if app_settings else '') or BRAND_ACCENT }}" placeholder="#2563eb">
+              <span class="input-group-text p-0">
+                <input type="color" class="form-control form-control-color border-0" value="{{ (app_settings.brand_accent if app_settings else '') or BRAND_ACCENT }}" oninput="this.closest('.input-group').querySelector('input[name=brand_accent]').value=this.value" aria-label="Pick color">
+              </span>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label small fw-bold">
+              <i class="fa-solid fa-clock me-1 text-accent"></i>
+              Traffic Refresh Interval <small class="text-muted fw-normal">(seconds, 10–60)</small>
+            </label>
+            <div class="input-group">
+              <input type="number" class="form-control" name="traffic_interval"
+                value="{{ (app_settings.traffic_interval if app_settings else 10) or 10 }}"
+                min="10" max="60" step="5">
+              <span class="input-group-text"><i class="fa-solid fa-rotate"></i></span>
+            </div>
+            <div class="form-text">Controls how often Live Traffic and Monitor page auto-refresh. Lower = more API calls.</div>
+          </div>
+
+          <div class="col-12">
+            <hr class="my-2">
+            <h6 class="mb-2"><i class="fa-solid fa-desktop me-2 text-accent"></i>Default UI (Role Based)</h6>
+            <div class="text-muted small">These defaults apply when creating new users/staff. Each user can still choose their layout on first login.</div>
+          </div>
+
+          {% set ui_defaults = (app_settings.ui_defaults if app_settings else {}) or {} %}
+          {% set d_user = ui_defaults.user or {} %}
+          {% set d_staff = ui_defaults.staff or {} %}
+
+          <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">User Defaults</div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="ui_user_navbar" id="ui_user_navbar" {% if d_user.navbar is not defined or d_user.navbar %}checked{% endif %}>
+                  <label class="form-check-label" for="ui_user_navbar">Show Navbar</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="ui_user_sidebar" id="ui_user_sidebar" {% if d_user.sidebar is not defined or d_user.sidebar %}checked{% endif %}>
+                  <label class="form-check-label" for="ui_user_sidebar">Show Sidebar</label>
+                </div>
+                <label class="form-label small fw-bold mt-2">Landing</label>
+                <select class="form-select" name="ui_user_landing">
+                  <option value="dashboard" {% if (d_user.landing or 'dashboard')=='dashboard' %}selected{% endif %}>Dashboard</option>
+                  <option value="profile" {% if (d_user.landing or 'dashboard')=='profile' %}selected{% endif %}>Profile</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+              <div class="card-body">
+                <div class="fw-semibold mb-2">Staff Defaults</div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="ui_staff_navbar" id="ui_staff_navbar" {% if d_staff.navbar is not defined or d_staff.navbar %}checked{% endif %}>
+                  <label class="form-check-label" for="ui_staff_navbar">Show Navbar</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="ui_staff_sidebar" id="ui_staff_sidebar" {% if d_staff.sidebar is not defined or d_staff.sidebar %}checked{% endif %}>
+                  <label class="form-check-label" for="ui_staff_sidebar">Show Sidebar</label>
+                </div>
+                <label class="form-label small fw-bold mt-2">Landing</label>
+                <select class="form-select" name="ui_staff_landing">
+                  <option value="dashboard" {% if (d_staff.landing or 'dashboard')=='dashboard' %}selected{% endif %}>Dashboard</option>
+                  <option value="profile" {% if (d_staff.landing or 'dashboard')=='profile' %}selected{% endif %}>Profile</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label small fw-bold">Gmail (username)</label>
+            <input class="form-control" name="mail_username" value="{{ (app_settings.mail_username if app_settings else '') }}" placeholder="your@gmail.com">
+            <div class="form-text">Use an App Password (recommended), not your normal Gmail password.</div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label small fw-bold">Gmail App Password</label>
+            <input class="form-control" name="mail_password" value="{{ (app_settings.mail_password if app_settings else '') }}" placeholder="xxxx xxxx xxxx xxxx">
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label small fw-bold">Default sender</label>
+            <input class="form-control" name="mail_default_sender" value="{{ (app_settings.mail_default_sender if app_settings else '') }}" placeholder="your@gmail.com">
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label small fw-bold">SMTP server</label>
+            <input class="form-control" name="mail_server" value="{{ (app_settings.mail_server if app_settings else 'smtp.gmail.com') }}">
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label small fw-bold">Port</label>
+            <input class="form-control" name="mail_port" value="{{ (app_settings.mail_port if app_settings else 587) }}">
+          </div>
+
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="mail_use_tls" id="mail_use_tls" {% if (app_settings.mail_use_tls if app_settings else True) %}checked{% endif %}>
+              <label class="form-check-label" for="mail_use_tls">Use TLS</label>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <button class="btn btn-primary"><i class="fa-solid fa-save me-2"></i>Save settings</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h6 class="mb-3">Users & Routers</h6>
+
+        {% for u in users %}
+          <div class="border rounded-3 p-3 mb-3">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div class="fw-semibold">{{ u.username }}</div>
+              <div class="text-muted small">{{ u.email or "" }}</div>
+            </div>
+
+            {% set routers = u.routers or [] %}
+            {% if routers %}
+              <div class="table-responsive mt-2">
+                <table class="table table-sm align-middle mb-0">
+                  <thead>
+                    <tr class="text-muted small">
+                      <th>ID</th>
+                      <th>Name</th>
+                      <th>IP</th>
+                      <th>API User</th>
+                      <th>Password</th>
+                      <th>DNS</th>
+                      <th class="text-end">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for r in routers %}
+                    <tr>
+                      <td><code>{{ r.id }}</code></td>
+                      <td>{{ r.name }}</td>
+                      <td>{{ r.ip }}</td>
+                      <td>{{ r.api_user }}</td>
+                      <td>••••••••</td>
+                      <td>{{ r.dns_name or "login.net" }}</td>
+                      <td class="text-end">
+                        <form method="POST" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <input type="hidden" name="action" value="delete_router">
+                          <input type="hidden" name="u_id" value="{{ u._id }}">
+                          <input type="hidden" name="r_id" value="{{ r.id }}">
+                          <button class="btn btn-outline-danger btn-sm" onclick="return confirm('Remove this router?')">
+                            <i class="fa-solid fa-trash"></i>
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="text-muted small mt-2">No routers added.</div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

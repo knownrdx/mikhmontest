@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor — {{ router.name }}</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/monitor.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+      :root { --accent: {{ BRAND_ACCENT|default('#2563eb') }}; }
+
+      .stat-pill {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: var(--surface, #f8fafc);
+        border: 1px solid var(--border, #e2e8f0);
+        border-radius: 99px; padding: 6px 14px;
+        font-size: .82rem; font-weight: 600;
+      }
+      [data-bs-theme="dark"] .stat-pill { background:#1e293b; border-color:#334155; }
+
+      .monitor-table th { font-size: .72rem; text-transform: uppercase; letter-spacing:.05em; opacity:.6; font-weight:700; }
+      .monitor-table td { vertical-align: middle; }
+      .monitor-table tr { transition: background .2s; }
+      .monitor-table tbody tr:hover { background: rgba(37,99,235,.04); }
+
+      .kick-btn {
+        padding: 4px 14px; border-radius: 99px;
+        font-size: .75rem; font-weight: 700;
+        border: 1.5px solid rgba(239,68,68,.4);
+        color: #ef4444; background: rgba(239,68,68,.07);
+        transition: all .2s; cursor: pointer;
+      }
+      .kick-btn:hover { background: #ef4444; color:#fff; border-color:#ef4444; }
+
+      .refresh-ring {
+        width: 32px; height: 32px; border-radius: 50%;
+        border: 2px solid var(--border, #e2e8f0);
+        border-top-color: var(--accent);
+        display: inline-block; vertical-align: middle;
+        animation: mmSpin 10s linear infinite;
+      }
+      @keyframes mmSpin { to { transform: rotate(360deg); } }
+
+      .user-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-weight: 700;
+      }
+      .user-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #22c55e;
+        box-shadow: 0 0 0 0 rgba(34,197,94,.4);
+        animation: pulse 2s ease infinite;
+      }
+      @keyframes pulse {
+        0%  { box-shadow: 0 0 0 0 rgba(34,197,94,.5); }
+        70% { box-shadow: 0 0 0 8px rgba(34,197,94,0); }
+        100%{ box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+      }
+
+      .traffic-badge {
+        font-size:.72rem; font-weight:700;
+        display:inline-block; padding:2px 8px;
+        border-radius:99px;
+        background:rgba(37,99,235,.1); color:var(--accent);
+      }
+      .traffic-badge.tx { background:rgba(239,68,68,.1); color:#ef4444; }
+
+      .empty-monitor { padding: 60px 20px; text-align:center; }
+      .empty-monitor .empty-icon { font-size: 3rem; opacity:.3; margin-bottom: 12px; }
+    </style>
+</head>
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+
+{% if ui_navbar %}
+  {% include 'partials/navbar.html' %}
+  {% include 'partials/breadcrumbs.html' %}
+{% endif %}
+
+{% if ui_sidebar %}
+<div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="appSidebarOffcanvas">
+  <div class="offcanvas-header border-bottom">
+    <h6 class="offcanvas-title">Menu</h6>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body p-0">{% include 'partials/sidebar_auto.html' %}</div>
+</div>
+{% endif %}
+
+<div class="app-shell d-flex">
+  {% if ui_sidebar %}
+  <aside class="sidebar d-none d-lg-block">{% include 'partials/sidebar_auto.html' %}</aside>
+  {% endif %}
+  <main class="main">
+
+<div class="container-fluid px-3 py-3">
+
+  <!-- Header -->
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+      <h4 class="fw-bold mb-1">
+        <i class="fa-solid fa-signal me-2 text-accent"></i>{{ router.name }}
+        <span class="badge bg-success ms-2" style="font-size:.6rem;vertical-align:middle;">Live</span>
+      </h4>
+      <div class="d-flex flex-wrap gap-2 mt-2">
+        {% if ram and ram.total_gb is not none %}
+        <span class="stat-pill">
+          <i class="fa-solid fa-memory text-accent" style="font-size:.75rem;"></i>
+          RAM {{ ram.used_gb if ram.used_gb is not none else '?' }}/{{ ram.total_gb }} GB
+        </span>
+        {% endif %}
+        {% if cpu and cpu.load %}
+        <span class="stat-pill">
+          <i class="fa-solid fa-microchip text-warning" style="font-size:.75rem;"></i>
+          CPU {{ cpu.load }}%
+        </span>
+        {% endif %}
+        {% if cpu and cpu.uptime %}
+        <span class="stat-pill">
+          <i class="fa-solid fa-clock text-success" style="font-size:.75rem;"></i>
+          {{ cpu.uptime }}
+        </span>
+        {% endif %}
+        <span class="stat-pill">
+          <i class="fa-solid fa-users text-accent" style="font-size:.75rem;"></i>
+          <span id="activeCount">{{ active_users|length }}</span> active
+        </span>
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center gap-3">
+      <div class="text-center">
+        <div class="refresh-ring" id="refreshRing"></div>
+        <div class="small text-muted mt-1" style="font-size:.65rem;">{{ traffic_interval }}s</div>
+      </div>
+      <button class="btn btn-sm btn-primary rounded-pill px-3" onclick="loadUsers()">
+        <i class="fa-solid fa-sync-alt me-1"></i> Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Active Users Table -->
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table monitor-table mb-0" id="monitorTable">
+          <thead>
+            <tr>
+              <th class="px-4 py-3">User</th>
+              <th class="py-3">IP</th>
+              <th class="py-3 d-none d-md-table-cell">MAC</th>
+              <th class="py-3">Uptime</th>
+              <th class="py-3 d-none d-lg-table-cell">Traffic ↓/↑</th>
+              <th class="py-3 text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody id="monitorBody">
+            {% for u in active_users %}
+            <tr data-uid="{{ u.id }}">
+              <td class="px-4">
+                <div class="user-badge">
+                  <span class="user-dot"></span>
+                  <strong>{{ u.user }}</strong>
+                </div>
+              </td>
+              <td class="font-monospace small text-muted">{{ u.address }}</td>
+              <td class="font-monospace small text-muted d-none d-md-table-cell">{{ u['mac-address'] }}</td>
+              <td><span class="badge bg-info-subtle text-info border border-info-subtle small">{{ u.uptime }}</span></td>
+              <td class="d-none d-lg-table-cell">
+                {% set rx = u.get('bytes-in', 0)|int %}
+                {% set tx = u.get('bytes-out', 0)|int %}
+                <span class="traffic-badge">{{ (rx/1048576)|round(1) }} MB</span>
+                <span class="traffic-badge tx">{{ (tx/1048576)|round(1) }} MB</span>
+              </td>
+              <td class="text-center">
+                <button class="kick-btn"
+                  onclick="kickUser('{{ router.id }}','{{ u.id }}','{{ u.user }}',this)">
+                  <i class="fa-solid fa-ban me-1"></i>Kick
+                </button>
+              </td>
+            </tr>
+            {% else %}
+            <tr id="emptyRow">
+              <td colspan="6">
+                <div class="empty-monitor">
+                  <div class="empty-icon">📡</div>
+                  <div class="fw-bold mb-1">No active sessions</div>
+                  <div class="text-muted small">Waiting for connections...</div>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+  </main>
+</div>
+
+{% if request.endpoint != 'login' %}{% include 'partials/footer_ads.html' %}{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/toasts.js') }}"></script>
+<script>
+(function() {
+  const saved = localStorage.getItem('ui_theme') || localStorage.getItem('user-theme') || 'light';
+  document.documentElement.setAttribute('data-bs-theme', saved);
+})();
+
+document.addEventListener("scroll", function () {
+  const nav = document.querySelector(".navbar");
+  if (nav) nav.classList.toggle("scrolled", window.scrollY > 10);
+});
+
+// ─── Kick user ───────────────────────────────────────────────
+async function kickUser(routerId, activeId, username, btn) {
+  if (!confirm(`Disconnect "${username}"?`)) return;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+  try {
+    const res = await fetch(`{{ url_for('admin.kick_user', active_id='__AID__') }}`
+      .replace('__RID__', routerId).replace('__AID__', activeId));
+    if (res.ok || res.redirected) {
+      const row = btn.closest('tr');
+      row.style.transition = 'opacity .3s, transform .3s';
+      row.style.opacity = '0';
+      row.style.transform = 'translateX(40px)';
+      setTimeout(() => {
+        row.remove();
+        updateCount();
+        if (window.showToast) showToast('success', 'Kicked', `${username} disconnected.`);
+      }, 350);
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-ban me-1"></i>Kick';
+  }
+}
+
+function updateCount() {
+  const rows = document.querySelectorAll('#monitorBody tr[data-uid]');
+  const el = document.getElementById('activeCount');
+  if (el) el.textContent = rows.length;
+  if (rows.length === 0) {
+    const tbody = document.getElementById('monitorBody');
+    tbody.innerHTML = `<tr id="emptyRow"><td colspan="6"><div class="empty-monitor"><div class="empty-icon">📡</div><div class="fw-bold mb-1">No active sessions</div><div class="text-muted small">Waiting for connections...</div></div></td></tr>`;
+  }
+}
+
+// ─── Auto-reload page every N seconds ────────────────────────
+const REFRESH_INTERVAL = {{ traffic_interval }} * 1000;
+let refreshTimer = setTimeout(() => location.reload(), REFRESH_INTERVAL);
+
+function loadUsers() {
+  clearTimeout(refreshTimer);
+  location.reload();
+}
+
+// Restart ring animation on each page load
+const ring = document.getElementById('refreshRing');
+if (ring) ring.style.animationDuration = '{{ traffic_interval }}s';
+</script>
+</body>
+</html>

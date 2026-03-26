@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Port Lock — {{ BRAND_NAME }}</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='img/favicon-64.png') }}">
+    <link rel="apple-touch-icon" sizes="256x256" href="{{ url_for('static', filename='img/logo-square-256.png') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_layout.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/port_lock.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/toasts.css') }}">
+    <script>
+      (function(){var t=localStorage.getItem('ui_theme')||localStorage.getItem('admin_theme')||'light';document.documentElement.setAttribute('data-bs-theme',t);if(t==='dark')document.documentElement.classList.add('theme-dark');})();
+    </script>
+</head>
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+{% if ui_navbar %}{% include 'partials/navbar.html' %}{% endif %}
+{% if ui_sidebar %}
+<div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="appSidebarOffcanvas">
+  <div class="offcanvas-header border-bottom"><h6 class="offcanvas-title">Menu</h6><button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button></div>
+  <div class="offcanvas-body p-0">{% include 'partials/sidebar_auto.html' %}</div>
+</div>
+{% endif %}
+<div class="app-shell d-flex">
+  {% if ui_sidebar %}<aside class="sidebar d-none d-lg-block">{% include 'partials/sidebar_auto.html' %}</aside>{% endif %}
+  <main class="main">
+{% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="flash-stack">{% for cat, msg in messages %}<div class="alert alert-{{ cat }} flash-auto">{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+
+<div class="container">
+  <div class="pl-card p-4 p-md-5 border-top border-4" style="border-color:var(--accent)!important;">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h4 class="fw-bold m-0" style="color:var(--accent);"><i class="fa-solid fa-lock me-2"></i>Port Lock / Unlock</h4>
+        <div class="router-info-badge mt-2">
+          <i class="fa-solid fa-server me-1"></i>{{ selected_router.name if selected_router else 'No Router' }}
+          {% if selected_router %}<span class="ms-2" style="font-size:.75rem;color:var(--muted);">{{ selected_router.ip }}</span>{% endif %}
+          {% if is_admin %}<span id="osVersionBadge" class="ms-2" style="font-size:.68rem;color:var(--muted);display:none;"></span>{% endif %}
+        </div>
+      </div>
+      {% if is_admin %}
+      <button class="btn btn-outline-primary btn-sm" id="btnScan" onclick="doScan()"><i class="fa-solid fa-rotate me-1"></i> Scan Bridges</button>
+      {% endif %}
+    </div>
+
+    <!-- State box (always shown) -->
+    <div id="stateBox" class="state-box state-unknown mt-4">
+      <div class="state-icon"><i class="fa-solid fa-question"></i></div>
+      <div>
+        <div class="state-label" id="stateLabel">
+          {% if is_admin %}Not Scanned{% elif has_config %}Checking...{% else %}Not Configured{% endif %}
+        </div>
+        <div class="state-desc" id="stateDesc">
+          {% if is_admin %}Click "Scan Bridges" to start{% elif has_config %}Loading current state...{% else %}Contact your administrator to configure bridge settings{% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if is_admin %}
+    <!-- ===== ADMIN-ONLY SECTIONS ===== -->
+
+    <div id="skeleton" class="d-none mt-4"><div class="skeleton-bar"></div><div class="skeleton-bar" style="width:70%"></div><div class="skeleton-bar" style="width:85%"></div></div>
+
+    <!-- Bridge Map (shown after scan) -->
+    <div id="bridgeMap" class="d-none mt-4"></div>
+
+    <!-- STEP 1: Select Hotspot Bridges -->
+    <div id="step1" class="d-none mt-4">
+      <div class="wizard-step p-3 rounded-3">
+        <div class="wizard-step-header">
+          <span class="wizard-step-num">1</span>
+          <div>
+            <div class="fw-bold" style="color:#ef4444;font-size:.9rem;"><i class="fa-solid fa-fire me-2"></i>Select Hotspot Bridge(s)</div>
+            <div style="font-size:.75rem;color:var(--muted);">Which bridges should ports be LOCKED to? (Hotspot/billing). Select multiple — ports will be distributed equally so no bridge gets overloaded.</div>
+          </div>
+        </div>
+        <div id="hsBridgeList" class="d-flex flex-wrap gap-2 mt-3"></div>
+        <div class="mt-3 d-flex gap-2 align-items-center">
+          <button class="btn btn-primary btn-sm" onclick="goStep2()" id="btnStep1Next"><i class="fa-solid fa-arrow-right me-1"></i> Next</button>
+          <span id="step1Hint" class="text-danger" style="font-size:.72rem;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: Select Free/DHCP Bridges -->
+    <div id="step2" class="d-none mt-4">
+      <div class="wizard-step p-3 rounded-3">
+        <div class="wizard-step-header">
+          <span class="wizard-step-num">2</span>
+          <div>
+            <div class="fw-bold" style="color:#10b981;font-size:.9rem;"><i class="fa-solid fa-globe me-2"></i>Select Free / DHCP Bridge(s)</div>
+            <div style="font-size:.75rem;color:var(--muted);">Which bridges are "free internet" (unlock target)? Ports from these bridges will be moved when locking.</div>
+          </div>
+        </div>
+        <div id="freeBridgeList" class="d-flex flex-wrap gap-2 mt-3"></div>
+        <div class="mt-3 d-flex gap-2 align-items-center">
+          <button class="btn btn-outline-secondary btn-sm" onclick="goStep1()"><i class="fa-solid fa-arrow-left me-1"></i> Back</button>
+          <button class="btn btn-primary btn-sm" onclick="goStep3()" id="btnStep2Next"><i class="fa-solid fa-arrow-right me-1"></i> Next</button>
+          <span id="step2Hint" class="text-danger" style="font-size:.72rem;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3: Exclude Ports + Save -->
+    <div id="step3" class="d-none mt-4">
+      <div class="wizard-step p-3 rounded-3">
+        <div class="wizard-step-header">
+          <span class="wizard-step-num">3</span>
+          <div>
+            <div class="fw-bold" style="color:var(--accent);font-size:.9rem;"><i class="fa-solid fa-cog me-2"></i>Exclude Ports & Confirm</div>
+            <div style="font-size:.75rem;color:var(--muted);">Click ports to exclude (red = excluded, won't be moved). Then save to generate RouterOS scripts (v6 + v7).</div>
+          </div>
+        </div>
+        <div id="excludeList" class="d-flex flex-wrap gap-2 mt-3"></div>
+        <div id="distributionPreview" class="mt-3" style="font-size:.78rem;"></div>
+        <div class="mt-3 d-flex gap-2 align-items-center">
+          <button class="btn btn-outline-secondary btn-sm" onclick="goStep2()"><i class="fa-solid fa-arrow-left me-1"></i> Back</button>
+          <button class="btn btn-success btn-sm" id="btnSaveCfg" onclick="saveCfg()"><i class="fa-solid fa-check me-1"></i> Save & Setup Scripts</button>
+          <span id="cfgHint" style="font-size:.72rem;color:var(--muted);"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Port Map Info (shown when configured) -->
+    <div id="portMapInfo" class="d-none mt-3">
+      <div class="p-3 rounded-3" style="background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.15);">
+        <div class="fw-bold mb-2" style="font-size:.82rem;color:#10b981;"><i class="fa-solid fa-map me-1"></i>Port Lock Map — Equal Distribution</div>
+        <div id="portMapTable"></div>
+      </div>
+    </div>
+
+    <!-- ADMIN ACTIONS (shown when configured) -->
+    <div id="actionRow" class="d-none mt-4">
+      <div class="d-flex gap-3 justify-content-center flex-wrap">
+        <button class="btn btn-lock btn-lg" id="btnLock" onclick="doAction('lock')" disabled>
+          <i class="fa-solid fa-lock me-2"></i>LOCK<small class="d-block mt-1" style="font-size:.68rem;opacity:.7;">Ports → Hotspot (equal split)</small>
+        </button>
+        <button class="btn btn-unlock btn-lg" id="btnUnlock" onclick="doAction('unlock')" disabled>
+          <i class="fa-solid fa-lock-open me-2"></i>UNLOCK<small class="d-block mt-1" style="font-size:.68rem;opacity:.7;">Ports → Original bridges</small>
+        </button>
+      </div>
+      <div class="text-center mt-2 d-flex gap-3 justify-content-center">
+        <button class="btn btn-link btn-sm text-muted" onclick="showReconfig()" style="font-size:.72rem;"><i class="fa-solid fa-pen me-1"></i>Reconfigure</button>
+        <button class="btn btn-link btn-sm text-muted" onclick="doScripts()" style="font-size:.72rem;"><i class="fa-solid fa-arrows-rotate me-1"></i>Update Scripts</button>
+      </div>
+    </div>
+
+    <!-- ADMIN LOG -->
+    <div id="actionLog" class="d-none mt-4">
+      <div class="text-muted" style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;"><i class="fa-solid fa-clock-rotate-left me-1"></i>Log</div>
+      <div id="logEntries" style="max-height:150px;overflow-y:auto;"></div>
+    </div>
+
+    {% else %}
+    <!-- ===== USER-ONLY SECTION ===== -->
+
+    {% if has_config %}
+    <!-- User: Lock/Unlock buttons -->
+    <div class="mt-4">
+      <div class="d-flex gap-3 justify-content-center flex-wrap">
+        <button class="btn btn-lock btn-lg" id="btnLock" onclick="doAction('lock')" disabled>
+          <i class="fa-solid fa-lock me-2"></i>LOCK
+          <small class="d-block mt-1" style="font-size:.68rem;opacity:.7;">Ports → Hotspot (billing)</small>
+        </button>
+        <button class="btn btn-unlock btn-lg" id="btnUnlock" onclick="doAction('unlock')" disabled>
+          <i class="fa-solid fa-lock-open me-2"></i>UNLOCK
+          <small class="d-block mt-1" style="font-size:.68rem;opacity:.7;">Ports → Free internet</small>
+        </button>
+      </div>
+    </div>
+
+    <!-- User LOG -->
+    <div id="actionLog" class="d-none mt-4">
+      <div class="text-muted" style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;"><i class="fa-solid fa-clock-rotate-left me-1"></i>Log</div>
+      <div id="logEntries" style="max-height:150px;overflow-y:auto;"></div>
+    </div>
+
+    {% else %}
+    <!-- User: Not configured message -->
+    <div class="mt-4 text-center p-4" style="background:rgba(0,0,0,.03);border-radius:12px;">
+      <i class="fa-solid fa-cog text-muted mb-3" style="font-size:2.5rem;opacity:.3;display:block;"></i>
+      <div class="fw-bold" style="color:var(--muted);">Port Lock Not Configured</div>
+      <div style="font-size:.85rem;color:var(--muted);margin-top:6px;">Contact your administrator to configure bridge settings.</div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+
+  </div>
+</div>
+  </main>
+</div>
+{% if request.endpoint != 'login' %}{% include 'partials/footer_ads.html' %}{% endif %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/toasts.js') }}"></script>
+<script>
+const RID="{{(selected_router.get('id') if selected_router else '')}}";
+const IS_ADMIN={{ 'true' if is_admin else 'false' }};
+const HAS_CONFIG={{ 'true' if has_config else 'false' }};
+const U={
+  scan:"{{url_for('admin.port_lock_scan')}}",
+  cfg:"{{url_for('admin.port_lock_configure')}}",
+  act:"{{url_for('admin.port_lock_do_action')}}",
+  scr:"{{url_for('admin.port_lock_setup_scripts')}}",
+  rst:"{{url_for('admin.port_lock_reset')}}",
+  status:"{{url_for('admin.port_lock_status')}}",
+};
+
+let S=null, C=null, EX=new Set(), busy=false;
+let selHotspot=new Set(), selFree=new Set();
+let rosVersion=null;
+
+function fd(x){const f=new FormData();f.append('router_id',RID);if(x)Object.entries(x).forEach(([k,v])=>f.append(k,v));return f;}
+function hide(id,h=true){const el=document.getElementById(id);if(el)el.classList.toggle('d-none',h);}
+function hideAllSteps(){['step1','step2','step3'].forEach(s=>hide(s));}
+
+// ============ STATUS (non-admin) ============
+async function doStatus(){
+  try{
+    const r=await(await fetch(U.status,{method:'POST',body:fd(),credentials:'same-origin'})).json();
+    if(!r.ok){setS('error',r.error);return;}
+    if(!r.configured){setS('unknown');document.getElementById('stateDesc').textContent='Not configured';return;}
+    setS(r.state);
+    const btnL=document.getElementById('btnLock');
+    const btnU=document.getElementById('btnUnlock');
+    if(btnL)btnL.disabled=false;
+    if(btnU)btnU.disabled=false;
+    updBtns(r.state);
+  }catch(e){setS('error',e.message);}
+}
+
+// ============ SCAN (admin only) ============
+async function doScan(){
+  const b=document.getElementById('btnScan');b.disabled=true;b.innerHTML='<i class="fa-solid fa-spinner fa-spin me-1"></i>Scanning...';
+  hide('skeleton',false);hide('bridgeMap');hide('actionRow');hideAllSteps();hide('portMapInfo');
+  try{
+    const r=await(await fetch(U.scan,{method:'POST',body:fd(),credentials:'same-origin'})).json();
+    console.log('Scan:', r);
+    if(!r.ok) throw new Error(r.error);
+    S=r.scan; C=r.config;
+    rosVersion=r.ros_version||r.scan.ros_version||null;
+    if(rosVersion && rosVersion.major){
+      const badge=document.getElementById('osVersionBadge');
+      if(badge){
+        const col=rosVersion.major>=7?'#10b981':'#f59e0b';
+        badge.innerHTML=`<span style="background:${col}15;color:${col};padding:2px 8px;border-radius:10px;font-weight:600;">v${rosVersion.major}</span>`;
+        badge.style.display='inline';
+      }
+    }
+    renderMap(r.scan);
+    if(r.config && r.config.port_map && r.config.port_map.length > 0){
+      selHotspot=new Set(r.config.hotspot_bridges||[]);
+      selFree=new Set(r.config.free_bridges||[]);
+      EX=new Set(r.config.excluded_ports||[]);
+      setS(r.state);
+      showPortMapInfo(r.config);
+      hide('actionRow',false); updBtns(r.state);
+    } else {
+      setS('unknown');
+      document.getElementById('stateDesc').textContent='Follow the steps below to configure bridge roles';
+      selHotspot=new Set();selFree=new Set();EX=new Set();
+      S.bridges.forEach(br=>{
+        if(br.type==='hotspot') selHotspot.add(br.name);
+        else if(br.type==='dhcp') selFree.add(br.name);
+      });
+      goStep1();
+    }
+    if(window.showToast){
+      const osTag=rosVersion?` | RouterOS v${rosVersion.major||'?'} (${rosVersion.raw||''})`:'';
+      showToast('success','Scanned',r.scan.bridges.length+' bridge(s) found'+osTag);
+    }
+  }catch(e){setS('error',e.message);if(window.showToast)showToast('danger','Error',e.message);}
+  finally{hide('skeleton');b.disabled=false;b.innerHTML='<i class="fa-solid fa-rotate me-1"></i>Scan Bridges';}
+}
+
+// ============ STATE ============
+function setS(s,msg){
+  const bx=document.getElementById('stateBox');bx.className='state-box state-'+s;
+  const m={
+    locked:{i:'fa-lock',l:'LOCKED',d:'All ports in hotspot bridge(s) — billing active',c:'#ef4444'},
+    unlocked:{i:'fa-lock-open',l:'UNLOCKED',d:'Ports in original bridges — free internet',c:'#10b981'},
+    mixed:{i:'fa-shuffle',l:'MIXED',d:'Ports split between bridges',c:'#f59e0b'},
+    error:{i:'fa-circle-xmark',l:'ERROR',d:msg||'Error',c:'#ef4444'},
+    unknown:{i:'fa-cog',l:'NOT CONFIGURED',d:'Configure below',c:'#94a3b8'}};
+  const v=m[s]||m.unknown;
+  bx.querySelector('.state-icon').innerHTML=`<i class="fa-solid ${v.i}"></i>`;
+  bx.querySelector('.state-icon').style.color=v.c;
+  document.getElementById('stateLabel').textContent=v.l;
+  document.getElementById('stateLabel').style.color=v.c;
+  document.getElementById('stateDesc').textContent=v.d;
+}
+
+// ============ BRIDGE MAP ============
+function renderMap(scan){
+  const c=document.getElementById('bridgeMap');if(!c)return;c.innerHTML='';c.classList.remove('d-none');
+  scan.bridges.forEach(br=>{
+    let col='#64748b',ico='fa-network-wired',tag='';
+    const isHS=selHotspot.has(br.name);
+    const isFree=selFree.has(br.name);
+
+    if(isHS || br.type==='hotspot'){
+      col='#ef4444';ico='fa-fire';
+      const label=br.server?`Hotspot: ${br.server}`:'Hotspot (selected)';
+      tag=`<span class="br-tag br-tag-hotspot"><i class="fa-solid fa-fire me-1"></i>${label}</span>`;
+    } else if(isFree || br.type==='dhcp'){
+      col='#10b981';ico='fa-globe';
+      const label=br.server?`DHCP: ${br.server}`:'Free (selected)';
+      tag=`<span class="br-tag br-tag-free"><i class="fa-solid fa-globe me-1"></i>${label}</span>`;
+    } else {
+      tag='<span class="badge" style="background:rgba(0,0,0,.06);color:#64748b;font-size:.6rem;">Other</span>';
+    }
+
+    let ph='';
+    if(!br.ports.length){ph='<div class="text-muted text-center py-2" style="font-size:.8rem;">No ports</div>';}
+    else{ph='<div class="port-grid">';br.ports.forEach(p=>{
+      const isEx=EX.has(p.interface);
+      const bg=isEx?'rgba(239,68,68,.06)':'rgba(34,197,94,.06)';
+      const bd=isEx?'rgba(239,68,68,.2)':'rgba(34,197,94,.15)';
+      const pc=isEx?'#ef4444':'#16a34a';
+      const badge=isEx?'<span style="font-size:.55rem;color:#ef4444;font-weight:600;">EXCLUDED</span>':'';
+      ph+=`<div class="port-chip" style="background:${bg};border-color:${bd};"><div class="port-name"><i class="fa-solid fa-ethernet me-1" style="color:${pc};font-size:.7rem;"></i>${p.interface}</div>${badge}</div>`;
+    });ph+='</div>';}
+
+    c.innerHTML+=`<div class="bridge-card" style="border-left:4px solid ${col};"><div class="bridge-header"><div class="d-flex align-items-center gap-2 flex-wrap"><i class="fa-solid ${ico}" style="color:${col};"></i><span class="fw-bold" style="font-size:.9rem;">${br.name}</span>${tag}</div><span class="badge" style="background:rgba(0,0,0,.06);color:var(--text);font-size:.68rem;">${br.ports.length} port(s)</span></div>${ph}</div>`;
+  });
+}
+
+// ============ WIZARD STEP 1: Select Hotspot Bridges ============
+function goStep1(){
+  hideAllSteps();
+  hide('step1',false);
+  buildHsList();
+}
+
+function buildHsList(){
+  const d=document.getElementById('hsBridgeList');if(!d)return;d.innerHTML='';
+  if(!S)return;
+  S.bridges.forEach(br=>{
+    const sel=selHotspot.has(br.name);
+    const c=document.createElement('button');c.type='button';
+    c.className='btn btn-sm rounded-pill '+(sel?'btn-danger':'btn-outline-secondary');
+    c.style.cssText='font-size:.78rem;padding:4px 14px;';
+    const autoTag=(br.type==='hotspot')?' ⚡':'';
+    c.innerHTML=`<i class="fa-solid fa-${sel?'fire':'network-wired'} me-1"></i>${br.name}${autoTag}`;
+    c.title=br.type==='hotspot'?`Auto-detected: Hotspot (${br.server})`:`Bridge: ${br.name}`;
+    c.onclick=()=>{
+      if(selHotspot.has(br.name)){selHotspot.delete(br.name);}
+      else{selHotspot.add(br.name);selFree.delete(br.name);}
+      buildHsList();
+    };
+    d.appendChild(c);
+  });
+  document.getElementById('step1Hint').textContent=selHotspot.size===0?'Select at least one hotspot bridge':'';
+}
+
+// ============ WIZARD STEP 2: Select Free Bridges ============
+function goStep2(){
+  if(selHotspot.size===0){
+    document.getElementById('step1Hint').textContent='Select at least one hotspot bridge first!';
+    return;
+  }
+  hideAllSteps();
+  hide('step2',false);
+  buildFreeList();
+}
+
+function buildFreeList(){
+  const d=document.getElementById('freeBridgeList');if(!d)return;d.innerHTML='';
+  if(!S)return;
+  const available=S.bridges.filter(br=>!selHotspot.has(br.name));
+  if(!available.length){
+    d.innerHTML='<span class="text-muted" style="font-size:.8rem;">All bridges are selected as hotspot. Go back and deselect some.</span>';
+    return;
+  }
+  available.forEach(br=>{
+    const sel=selFree.has(br.name);
+    const c=document.createElement('button');c.type='button';
+    c.className='btn btn-sm rounded-pill '+(sel?'btn-success':'btn-outline-secondary');
+    c.style.cssText='font-size:.78rem;padding:4px 14px;';
+    const autoTag=(br.type==='dhcp')?' 🌐':'';
+    c.innerHTML=`<i class="fa-solid fa-${sel?'globe':'network-wired'} me-1"></i>${br.name}${autoTag}`;
+    c.title=br.type==='dhcp'?`Auto-detected: DHCP (${br.server})`:`Bridge: ${br.name}`;
+    c.onclick=()=>{
+      if(selFree.has(br.name)){selFree.delete(br.name);}
+      else{selFree.add(br.name);}
+      buildFreeList();
+    };
+    d.appendChild(c);
+  });
+  document.getElementById('step2Hint').textContent=selFree.size===0?'Select at least one free/DHCP bridge':'';
+}
+
+// ============ WIZARD STEP 3: Exclude Ports + Preview ============
+function goStep3(){
+  if(selFree.size===0){
+    document.getElementById('step2Hint').textContent='Select at least one free/DHCP bridge!';
+    return;
+  }
+  hideAllSteps();
+  hide('step3',false);
+  buildExcl();
+  showDistributionPreview();
+}
+
+function buildExcl(){
+  const d=document.getElementById('excludeList');if(!d)return;d.innerHTML='';if(!S)return;
+  const all=[];
+  S.bridges.forEach(br=>{
+    if(selFree.has(br.name)) br.ports.forEach(p=>{if(!all.includes(p.interface))all.push(p.interface);});
+  });
+  if(!all.length){
+    d.innerHTML='<span class="text-muted" style="font-size:.8rem;">No movable ports found in selected free bridges.</span>';
+    return;
+  }
+  all.sort().forEach(iface=>{
+    const ex=EX.has(iface);
+    const c=document.createElement('button');c.type='button';
+    c.className='btn btn-sm rounded-pill '+(ex?'btn-danger':'btn-outline-secondary');
+    c.style.cssText='font-size:.72rem;padding:2px 10px;';
+    c.innerHTML=`<i class="fa-solid fa-${ex?'ban':'ethernet'} me-1"></i>${iface}`;
+    c.onclick=()=>{if(EX.has(iface))EX.delete(iface);else EX.add(iface);buildExcl();showDistributionPreview();};
+    d.appendChild(c);
+  });
+}
+
+function showDistributionPreview(){
+  const div=document.getElementById('distributionPreview');
+  if(!div||!S){if(div)div.innerHTML='';return;}
+  const ports=[];
+  S.bridges.forEach(br=>{
+    if(selFree.has(br.name)) br.ports.forEach(p=>{
+      if(!EX.has(p.interface)) ports.push({iface:p.interface,from:br.name});
+    });
+  });
+  const hsBrs=[...selHotspot];
+  const freeBrs=[...selFree];
+  if(!hsBrs.length||!ports.length){
+    div.innerHTML='<span class="text-muted">No ports to distribute</span>';
+    return;
+  }
+  const dist={};
+  hsBrs.forEach(b=>{dist[b]=[];});
+  ports.forEach((p,i)=>{
+    const target=hsBrs[i % hsBrs.length];
+    dist[target].push(p.iface);
+  });
+  let html='<div class="p-2 rounded" style="background:rgba(37,99,235,.04);border:1px solid rgba(37,99,235,.1);">';
+  let scenario='';
+  if(freeBrs.length>=1 && hsBrs.length===1){
+    scenario=`All ${ports.length} ports → 1 hotspot bridge`;
+  } else if(freeBrs.length===1 && hsBrs.length>=2){
+    scenario=`${ports.length} ports split equally → ${hsBrs.length} hotspot bridges`;
+  } else {
+    scenario=`${ports.length} ports distributed equally → ${hsBrs.length} hotspot bridges`;
+  }
+  html+=`<div class="fw-bold mb-1" style="font-size:.78rem;color:var(--accent);"><i class="fa-solid fa-balance-scale me-1"></i>${scenario}</div>`;
+  html+=`<div style="font-size:.68rem;color:var(--muted);margin-bottom:6px;">${freeBrs.length} free bridge${freeBrs.length>1?'s':''} (${freeBrs.join(', ')}) → ${hsBrs.length} hotspot bridge${hsBrs.length>1?'s':''} (${hsBrs.join(', ')})</div>`;
+  hsBrs.forEach(b=>{
+    const ps=dist[b]||[];
+    html+=`<div style="font-size:.72rem;margin:4px 0;"><span class="fw-bold" style="color:#ef4444;"><i class="fa-solid fa-fire me-1"></i>${b}</span>: ${ps.length} port(s) — <span style="color:var(--muted);">${ps.join(', ')||'none'}</span></div>`;
+  });
+  html+='</div>';
+  div.innerHTML=html;
+  document.getElementById('cfgHint').textContent=`${ports.length} port(s) across ${hsBrs.length} hotspot bridge(s)`;
+}
+
+// ============ SAVE CONFIG ============
+async function saveCfg(){
+  if(selHotspot.size===0){if(window.showToast)showToast('danger','Error','Select at least one hotspot bridge');return;}
+  if(selFree.size===0){if(window.showToast)showToast('danger','Error','Select at least one free bridge');return;}
+  const btn=document.getElementById('btnSaveCfg');btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin me-1"></i>Saving...';
+  try{
+    const r=await(await fetch(U.cfg,{method:'POST',body:fd({
+      excluded_ports:[...EX].join(','),
+      hotspot_bridges:[...selHotspot].join(','),
+      free_bridges:[...selFree].join(','),
+    }),credentials:'same-origin'})).json();
+    console.log('Configure:', r);
+    if(!r.ok)throw new Error(r.error);
+    C=r.config;
+    log('scripts',`Config saved: ${r.config.port_map.length} ports equally across ${r.config.hotspot_bridges.length} bridge(s)`);
+    if(window.showToast)showToast('success','Saved','Configuration saved — setting up scripts...');
+    await doScripts();
+    await doScan();
+  }catch(e){if(window.showToast)showToast('danger','Error',e.message);}
+  finally{btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-check me-1"></i>Save & Setup Scripts';}
+}
+
+// ============ PORT MAP INFO ============
+function showPortMapInfo(config){
+  hide('portMapInfo',false);
+  const div=document.getElementById('portMapTable');if(!div)return;
+  const pm=config.port_map||[];
+  if(!pm.length){div.innerHTML='<span class="text-muted" style="font-size:.8rem;">No ports mapped</span>';return;}
+  const byBridge={};
+  pm.forEach(p=>{
+    if(!byBridge[p.lock_bridge])byBridge[p.lock_bridge]=[];
+    byBridge[p.lock_bridge].push(p);
+  });
+  let html='';
+  const bridges=Object.keys(byBridge);
+  bridges.forEach(br=>{
+    const ports=byBridge[br];
+    html+=`<div class="mb-2 p-2 rounded" style="background:rgba(239,68,68,.03);border:1px solid rgba(239,68,68,.1);">`;
+    html+=`<div class="fw-bold" style="font-size:.75rem;color:#ef4444;"><i class="fa-solid fa-fire me-1"></i>${br} — ${ports.length} port(s)</div>`;
+    html+='<table style="width:100%;font-size:.72rem;border-collapse:collapse;margin-top:4px;">';
+    html+='<tr style="color:var(--muted);border-bottom:1px solid rgba(0,0,0,.06);"><th style="padding:2px 6px;">Port</th><th style="padding:2px 6px;">Unlock →</th><th style="padding:2px 6px;">Lock →</th></tr>';
+    ports.forEach(p=>{
+      html+=`<tr style="border-bottom:1px solid rgba(0,0,0,.03);">
+        <td style="padding:2px 6px;font-weight:600;"><i class="fa-solid fa-ethernet me-1" style="color:#16a34a;font-size:.6rem;"></i>${p.interface}</td>
+        <td style="padding:2px 6px;color:#10b981;">${p.unlock_bridge}</td>
+        <td style="padding:2px 6px;color:#ef4444;">${p.lock_bridge}</td>
+      </tr>`;
+    });
+    html+='</table></div>';
+  });
+  if(config.excluded_ports&&config.excluded_ports.length){
+    html+=`<div class="mt-2" style="font-size:.7rem;color:#ef4444;"><i class="fa-solid fa-ban me-1"></i>Excluded: ${config.excluded_ports.join(', ')}</div>`;
+  }
+  html+=`<div class="mt-2 p-2 rounded" style="background:rgba(37,99,235,.04);border:1px solid rgba(37,99,235,.1);font-size:.72rem;">`;
+  html+=`<i class="fa-solid fa-balance-scale me-1" style="color:var(--accent);"></i><strong>Equal distribution:</strong> ${pm.length} ports across ${bridges.length} hotspot bridge(s)`;
+  bridges.forEach(br=>{html+=` | <span style="color:#ef4444;">${br}: ${byBridge[br].length}</span>`;});
+  html+='</div>';
+  div.innerHTML=html;
+}
+
+// ============ RECONFIGURE ============
+async function showReconfig(){
+  await fetch(U.rst,{method:'POST',body:fd(),credentials:'same-origin'});
+  C=null;hide('actionRow');hide('portMapInfo');setS('unknown');
+  if(S){renderMap(S);goStep1();}
+}
+
+// ============ ACTIONS ============
+function updBtns(s){
+  const btnL=document.getElementById('btnLock');
+  const btnU=document.getElementById('btnUnlock');
+  if(btnL){btnL.disabled=false;btnL.classList.toggle('active-state',s==='locked');}
+  if(btnU){btnU.disabled=false;btnU.classList.toggle('active-state',s==='unlocked');}
+}
+
+async function doAction(a){
+  if(busy)return;busy=true;
+  const btn=document.getElementById(a==='lock'?'btnLock':'btnUnlock'),orig=btn.innerHTML;
+  btn.disabled=true;btn.innerHTML=`<i class="fa-solid fa-spinner fa-spin me-2"></i>${a==='lock'?'Locking':'Unlocking'}...`;
+  try{
+    const r=await(await fetch(U.act,{method:'POST',body:fd({action:a}),credentials:'same-origin'})).json();
+    console.log('Action:', r);
+    if(!r.ok)throw new Error(r.error);
+    log(a,r.detail||'Done');
+    if(window.showToast)showToast('success',a==='lock'?'Locked':'Unlocked',r.detail);
+    if(IS_ADMIN) await doScan(); else await doStatus();
+  }catch(e){if(window.showToast)showToast('danger','Error',e.message);btn.innerHTML=orig;btn.disabled=false;}
+  finally{busy=false;}
+}
+
+async function doScripts(){
+  try{
+    const r=await(await fetch(U.scr,{method:'POST',body:fd(),credentials:'same-origin'})).json();
+    console.log('Scripts:', r);
+    if(!r.ok)throw new Error(r.error);
+    log('scripts','Scripts: '+r.scripts.join(', '));
+    if(window.showToast)showToast('success','Scripts','RouterOS scripts created/updated (v6/v7)');
+  }catch(e){if(window.showToast)showToast('danger','Error',e.message);}
+}
+
+// ============ LOG ============
+function log(a,d){
+  hide('actionLog',false);const e=document.getElementById('logEntries');
+  const ic={lock:'fa-lock',unlock:'fa-lock-open',scripts:'fa-scroll'},cc={lock:'#ef4444',unlock:'#10b981',scripts:'#2563eb'};
+  const el=document.createElement('div');el.className='log-entry';
+  el.innerHTML=`<i class="fa-solid ${ic[a]||'fa-circle'}" style="color:${cc[a]||'#94a3b8'};font-size:.7rem;"></i><span class="log-time">${new Date().toLocaleTimeString()}</span><span class="log-action">${a.toUpperCase()}</span><span class="log-detail">${d}</span>`;
+  e.insertBefore(el,e.firstChild);
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  if(RID){
+    if(IS_ADMIN) doScan();
+    else if(HAS_CONFIG) doStatus();
+  }
+});
+document.addEventListener("scroll",()=>{const n=document.querySelector(".navbar");if(n)n.classList.toggle("scrolled",window.scrollY>10);});
+</script>
+</body>
+</html>

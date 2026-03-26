@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quick User</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='img/favicon-64.png') }}">
+    <link rel="apple-touch-icon" sizes="256x256" href="{{ url_for('static', filename='img/logo-square-256.png') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_layout.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+
+  {% if ui_navbar %}
+  {% include 'partials/navbar.html' %}
+  {% include "partials/breadcrumbs.html" %}
+{% endif %}
+
+  {# Mobile offcanvas sidebar #}
+  {% if ui_sidebar %}
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="appSidebarOffcanvas" aria-labelledby="appSidebarOffcanvasLabel">
+    <div class="offcanvas-header border-bottom">
+      <h6 class="offcanvas-title" id="appSidebarOffcanvasLabel">Menu</h6>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+      {% include 'partials/sidebar_auto.html' %}
+    </div>
+  </div>
+  {% endif %}
+<div class="app-shell d-flex">
+  {% if ui_sidebar %}
+  <aside class="sidebar d-none d-lg-block">
+    {% include 'partials/sidebar_auto.html' %}
+  </aside>
+  {% endif %}
+  <main class="main">
+
+<div class="container" style="max-width: 780px;">
+    <h4 class="fw-bold mb-3"><i class="fa-solid fa-user-plus me-2"></i>Quick Hotspot User</h4>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} small">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('admin.quick_user') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Username</label>
+              <input name="username" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Password</label>
+              <input name="password" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Profile</label>
+              <select name="profile" class="form-select" required>
+                <option value="">-- Select --</option>
+                {% for p in profiles %}
+                  <option value="{{ p }}">{{ p }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-bold">Comment</label>
+              <input name="comment" class="form-control" placeholder="Optional">
+            </div>
+            <div class="col-12">
+              <button class="btn btn-primary w-100"><i class="fa-solid fa-check me-2"></i>Create</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+<script>
+document.addEventListener("scroll", function () {
+  const nav = document.querySelector(".navbar");
+  if (!nav) return;
+  if (window.scrollY > 10) nav.classList.add("scrolled");
+  else nav.classList.remove("scrolled");
+});
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+	
+  </main>
+</div>
+{% if request.endpoint != 'login' %}
+  {% include 'partials/footer_ads.html' %}
+{% endif %}
+</html>

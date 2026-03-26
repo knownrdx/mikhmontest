@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if sub_admin_mode is defined and sub_admin_mode %}Sub Admin{% else %}Admin Dashboard{% endif %} — {{ BRAND_NAME }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_layout.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_panel.css') }}">
+  <script>
+    /* Apply saved theme immediately to prevent FOUC */
+    (function(){var t=localStorage.getItem('ui_theme')||localStorage.getItem('admin_theme')||localStorage.getItem('user-theme')||'light';document.documentElement.setAttribute('data-bs-theme',t);if(t==='dark')document.documentElement.classList.add('theme-dark');})();
+  </script>
+  <style>
+    :root { --accent: {{ BRAND_ACCENT|default('#2563eb') }}; --rc: 16px; --ri: 12px; --sc: 0 2px 12px rgba(0,0,0,.04); }
+
+    .p-card { border-radius: var(--rc); border: 1px solid var(--border,rgba(0,0,0,.06)); background: var(--surface,#fff); box-shadow: var(--sc); overflow: hidden; transition: box-shadow .25s; }
+    .p-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.07); }
+    .p-card-head { padding: 14px 18px; border-bottom: 1px solid var(--border,rgba(0,0,0,.06)); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .p-card-body { padding: 16px 18px; }
+    .p-card-head-title { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: .9rem; }
+    .ph-icon { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: .8rem; flex-shrink: 0; }
+
+    .stat-card { border-radius: 16px; border: 1px solid var(--border,rgba(0,0,0,.06)); background: var(--surface,#fff); box-shadow: 0 1px 8px rgba(0,0,0,.03); padding: 16px 18px; display: flex; align-items: center; gap: 14px; transition: all .25s cubic-bezier(.4,0,.2,1); position: relative; overflow: hidden; }
+    .stat-card::after { content: ''; position: absolute; top: 0; right: 0; width: 60px; height: 60px; border-radius: 50%; opacity: .04; transform: translate(20px, -20px); }
+    .stat-card:nth-child(1)::after { background: #2563eb; }
+    .stat-card:nth-child(2)::after { background: #10b981; }
+    .stat-card:nth-child(3)::after { background: #6366f1; }
+    .stat-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,.1); transform: translateY(-2px); }
+    .stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: .95rem; flex-shrink: 0; }
+    .stat-value { font-size: 1.55rem; font-weight: 800; line-height: 1; color: var(--text); letter-spacing: -.02em; }
+    .stat-label { font-size: .6rem; letter-spacing: .7px; text-transform: uppercase; color: var(--muted,#64748b); margin-bottom: 2px; font-weight: 700; }
+    .stat-sub { font-size: .66rem; color: var(--muted,#94a3b8); margin-top: 3px; }
+
+    .prog { height: 4px; border-radius: 3px; background: var(--border,rgba(0,0,0,.06)); margin-top: 5px; }
+    .prog-fill { height: 100%; border-radius: 3px; transition: width .4s ease; }
+
+    .p-badge { font-size: .57rem; padding: 2px 8px; border-radius: 20px; font-weight: 700; white-space: nowrap; line-height: 1.6; letter-spacing: .02em; }
+    .qa { border-radius: 8px; font-size: .72rem; padding: 4px 10px; font-weight: 700; transition: all .15s; }
+    .qa:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+
+    .r-chip { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 12px; margin-bottom: 6px; background: var(--surface2); border: 1px solid var(--border,rgba(0,0,0,.05)); gap: 10px; transition: all .2s; }
+    .r-chip:hover { background: var(--surface); box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+
+    .lf-pill { font-size: .67rem; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border,rgba(0,0,0,.1)); background: transparent; cursor: pointer; font-weight: 700; transition: all .2s; color: var(--muted,#64748b); }
+    .lf-pill:hover { background: rgba(99,102,241,.06); border-color: rgba(99,102,241,.2); color: #4f46e5; transform: translateY(-1px); }
+    .lf-pill.active { background: rgba(99,102,241,.1); border-color: rgba(99,102,241,.3); color: #4f46e5; box-shadow: 0 2px 8px rgba(99,102,241,.15); }
+
+    .data-table th { font-size: .62rem; letter-spacing: .6px; text-transform: uppercase; font-weight: 700; color: var(--muted,#64748b); padding: 10px 12px; white-space: nowrap; }
+    .data-table td { vertical-align: middle; padding: 10px 12px; font-size: .83rem; color: var(--text); }
+    .data-table tbody tr { transition: background .15s; }
+    .data-table tbody tr:hover { background: var(--surface2, rgba(0,0,0,.015)) !important; }
+    .fl { font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .7px; color: var(--muted,#94a3b8); margin-bottom: 8px; display: block; }
+
+    /* Page header */
+    .page-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding: 16px 20px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border, rgba(0,0,0,.06)); box-shadow: 0 1px 6px rgba(0,0,0,.03); }
+    .page-header h5 { margin: 0; font-weight: 800; font-size: 1.05rem; letter-spacing: -.01em; }
+
+    /* Better mobile */
+    @media (max-width: 767px) {
+      .stat-grid { grid-template-columns: 1fr 1fr !important; }
+      .rcard-grid { grid-template-columns: 1fr 1fr !important; }
+      .hide-xs { display: none !important; }
+      .p-card-body { padding: 12px 14px; }
+      .p-card-head { padding: 12px 14px; }
+      .data-table td { padding: 8px 10px; font-size: .8rem; }
+      .stat-card { padding: 12px 14px; }
+      .stat-value { font-size: 1.25rem; }
+      .r-chip { flex-wrap: wrap; }
+      .r-chip .d-flex { flex-wrap: wrap; }
+      .page-header { padding: 12px 14px; border-radius: 12px; }
+      .page-header h5 { font-size: .92rem; }
+    }
+  </style>
+</head>
+
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+{% if ui_navbar %}{% include 'partials/navbar.html' %}{% endif %}
+
+{% if ui_sidebar %}
+<div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="appSidebarOffcanvas">
+  <div class="offcanvas-header border-bottom"><h6 class="offcanvas-title fw-bold">Menu</h6><button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button></div>
+  <div class="offcanvas-body p-0">{% if sub_admin_mode is defined and sub_admin_mode %}{% include 'partials/sidebar_auto.html' %}{% else %}{% include 'partials/sidebar_admin.html' %}{% endif %}</div>
+</div>
+{% endif %}
+
+<div class="app-shell d-flex">
+  {% if ui_sidebar %}
+  <aside class="sidebar d-none d-lg-block">{% if sub_admin_mode is defined and sub_admin_mode %}{% include 'partials/sidebar_auto.html' %}{% else %}{% include 'partials/sidebar_admin.html' %}{% endif %}</aside>
+  {% endif %}
+
+  <main class="main">
+    <div class="container-fluid px-3 px-md-4 py-3 pb-5" style="max-width:1400px;">
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }} alert-dismissible fade show small mb-3">{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+        {% endfor %}{% endif %}
+      {% endwith %}
+
+      {# PAGE HEADER #}
+      <div class="page-header">
+        <div>
+          <h5 style="display:flex;align-items:center;gap:8px;">
+            {% if sub_admin_mode is defined and sub_admin_mode %}<i class="fa-solid fa-user-gear" style="color:var(--accent,#2563eb);font-size:.9rem;"></i>Sub Admin Panel
+            {% else %}<i class="fa-solid fa-shield-halved" style="color:var(--accent,#2563eb);font-size:.9rem;"></i>Admin Dashboard{% endif %}
+          </h5>
+          <div class="text-muted" style="font-size:.73rem;margin-top:3px;"><i class="fa-solid fa-user me-1" style="font-size:.56rem;opacity:.5;"></i>{{ user_data.username if user_data else '' }}</div>
+        </div>
+        {% if not (sub_admin_mode is defined and sub_admin_mode) %}
+        <a href="{{ url_for('admin.admin_config') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-2" style="border-radius:10px;font-size:.77rem;font-weight:600;"><i class="fa-solid fa-gear"></i>Settings</a>
+        {% endif %}
+      </div>
+
+      {# STAT CARDS #}
+      {% if admin_stats is defined and admin_stats %}
+      <div class="stat-grid mb-4" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(37,99,235,.1);"><i class="fa-solid fa-users" style="color:#2563eb;"></i></div><div><div class="stat-label">Total Users</div><div class="stat-value">{{ admin_stats.total_users }}</div><div class="stat-sub">{{ admin_stats.total_staff }} sub-admins</div></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,.1);"><i class="fa-solid fa-server" style="color:#10b981;"></i></div><div><div class="stat-label">Routers</div><div class="stat-value">{{ admin_stats.routers_total }}</div><div class="stat-sub">across all users</div></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(99,102,241,.1);"><i class="fa-solid fa-users-gear" style="color:#6366f1;"></i></div><div><div class="stat-label">Sub Admins</div><div class="stat-value">{{ admin_stats.total_staff }}</div><div class="stat-sub">active accounts</div></div></div>
+      </div>
+      {% endif %}
+
+      {# ROUTER CAROUSEL — loaded async in background #}
+      <div class="mb-4" id="routerCarouselWrap">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="d-flex align-items-center gap-2 fw-semibold" style="font-size:.85rem;">
+            <i class="fa-solid fa-server" style="color:#06b6d4;"></i>Routers
+            <span class="badge bg-secondary rounded-pill" id="rTotalBadge" style="font-size:.6rem;">…</span>
+            <span id="rCardLabel" class="fw-normal text-muted" style="font-size:.72rem;"></span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span id="rStatusSummary" class="text-muted" style="font-size:.72rem;"></span>
+            <div class="d-flex gap-1" id="rNavBtns" style="display:none!important;">
+              <button onclick="rPrev()" id="rBtnPrev" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;width:28px;height:28px;padding:0;" disabled><i class="fa-solid fa-chevron-left" style="font-size:.6rem;"></i></button>
+              <button onclick="rNext()" id="rBtnNext" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;width:28px;height:28px;padding:0;"><i class="fa-solid fa-chevron-right" style="font-size:.6rem;"></i></button>
+            </div>
+          </div>
+        </div>
+        {# Skeleton card while loading #}
+        <div id="rSkeletonWrap" class="p-card" style="padding:20px;">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div style="width:120px;height:14px;border-radius:6px;background:var(--surface2);animation:skpulse 1.4s ease-in-out infinite;"></div>
+            <div style="width:60px;height:14px;border-radius:6px;background:var(--surface2);animation:skpulse 1.4s ease-in-out .2s infinite;"></div>
+          </div>
+          <div class="rcard-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+            {% for _ in range(4) %}<div style="border-radius:var(--ri);padding:10px;background:var(--surface2);height:68px;animation:skpulse 1.4s ease-in-out {{ loop.index0 * 0.1 }}s infinite;"></div>{% endfor %}
+          </div>
+        </div>
+        <style>@keyframes skpulse{0%,100%{opacity:1;}50%{opacity:.4;}}</style>
+        {# Slider populated by JS #}
+        <div id="rSliderOuter" style="overflow:hidden;display:none;">
+          <div id="rSlider" style="display:flex;transition:transform .35s cubic-bezier(.4,0,.2,1);"></div>
+        </div>
+        <div class="d-flex justify-content-center gap-1 mt-2" id="rDots"></div>
+      </div>
+
+      {# MAIN ROW: LEFT FORMS + RIGHT TABLE #}
+      <div class="row g-3 mb-4">
+
+        {# LEFT COLUMN #}
+        <div class="col-xl-4 col-lg-5">
+
+          {# Branding — admin only #}
+          {% if not (sub_admin_mode is defined and sub_admin_mode) %}
+          <div class="p-card mb-3">
+            <div class="p-card-head">
+              <div class="p-card-head-title"><div class="ph-icon" style="background:rgba(148,163,184,.12);"><i class="fa-solid fa-palette" style="color:#64748b;"></i></div>Branding</div>
+            </div>
+            <div class="p-card-body">
+              <form action="{{ url_for('admin.update_settings') }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label class="fl">Support Contact</label>
+                <input type="text" name="contact" class="form-control form-control-sm mb-2" value="{{ settings.support_contact or '' }}" placeholder="e.g. 01700-000000">
+                <button class="btn btn-sm btn-success w-100 fw-semibold" style="border-radius:8px;"><i class="fa-solid fa-check me-1"></i>Update</button>
+              </form>
+            </div>
+          </div>
+          {% endif %}
+
+          {# Voucher Generator — removed from admin panel (dedicated page at /create-vouchers) #}
+
+          {# Add New Account #}
+          {% if (not (sub_admin_mode is defined and sub_admin_mode)) or (sub_admin_mode and can_user_manage) %}
+          <div class="p-card mb-3" style="border-color:rgba(16,185,129,.2);">
+            <div class="p-card-head" style="background:rgba(16,185,129,.03);">
+              <div class="p-card-head-title"><div class="ph-icon" style="background:rgba(16,185,129,.1);"><i class="fa-solid fa-user-plus" style="color:#059669;"></i></div><span style="color:#059669;">Add New Account</span></div>
+            </div>
+            <div class="p-card-body">
+              <form action="{{ url_for('admin.add_user') }}" method="POST" id="addUserForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="row g-2 mb-2">
+                  <div class="col-6"><input type="text" name="u_name" class="form-control form-control-sm" placeholder="Username" required></div>
+                  <div class="col-6"><input type="password" name="u_pass" class="form-control form-control-sm" placeholder="Password" required></div>
+                </div>
+                <input type="email" name="u_email" class="form-control form-control-sm mb-2" placeholder="Email (optional)">
+                <select name="u_role" id="addUserRole" class="form-select form-select-sm mb-2" onchange="toggleRouterSection()">
+                  <option value="user">General User</option>
+                  {% if user_data.get('role') == 'admin' %}<option value="sub-admin">Sub Admin</option>{% endif %}
+                </select>
+                <div id="copyRouterWrap" class="mb-2">
+                  <label class="fl">Copy Router <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+                  <select name="copy_router_from" id="copyRouterFrom" class="form-select form-select-sm" onchange="onCopyRouterChange()">
+                    <option value="">— Enter manually —</option>
+                    {% for u in users if u.routers %}{% for r in u.routers %}<option value="{{ u._id }}|{{ r.id }}">{{ u.username }} → {{ r.name }}</option>{% endfor %}{% endfor %}
+                  </select>
+                </div>
+                <div id="manualRouterFields">
+                  <div class="row g-2 mb-2">
+                    <div class="col-6"><input type="text" name="r_name" id="r_name" class="form-control form-control-sm" placeholder="Router Name"></div>
+                    <div class="col-6"><input type="text" name="r_ip" id="r_ip" class="form-control form-control-sm" placeholder="IP:Port"></div>
+                  </div>
+                  <div class="row g-2 mb-2">
+                    <div class="col-6"><input type="text" name="r_user" id="r_user" class="form-control form-control-sm" placeholder="API User"></div>
+                    <div class="col-6"><input type="password" name="r_pass" id="r_pass" class="form-control form-control-sm" placeholder="API Pass"></div>
+                  </div>
+                </div>
+                <div id="subAdminRouterNote" style="display:none;" class="alert alert-info py-2 small mb-2"><i class="fa-solid fa-info-circle me-1"></i>Sub Admin routers can be assigned later.</div>
+
+                {# ── Permissions section (shown on create) ── #}
+                <div id="createPermSection" class="mb-3" style="background:var(--surface2);border-radius:10px;padding:12px;border:1px solid rgba(0,0,0,.06);">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold" style="font-size:.8rem;"><i class="fa-solid fa-shield-halved me-1 text-secondary"></i>Permissions <span class="text-muted fw-normal" style="font-size:.7rem;">(optional)</span></span>
+                    <button type="button" class="btn btn-sm" style="font-size:.65rem;border-radius:7px;background:rgba(37,99,235,.08);color:#2563eb;border:1px solid rgba(37,99,235,.18);" onclick="createGrantAll()"><i class="fa-solid fa-check-double me-1"></i>Grant All</button>
+                  </div>
+                  <div class="row g-1" style="font-size:.78rem;">
+                    <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="perm_can_generate" id="nc_gen"><label class="form-check-label small" for="nc_gen">Voucher Gen</label></div></div>
+                    <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="perm_allow_user_manage" id="nc_um"><label class="form-check-label small" for="nc_um">User Manage</label></div></div>
+                    <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="perm_allow_profiles" id="nc_pr"><label class="form-check-label small" for="nc_pr">Profiles View</label></div></div>
+                    <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="perm_allow_profile_edit" id="nc_pe"><label class="form-check-label small" for="nc_pe">Profile Edit</label></div></div>
+                    <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="perm_allow_reports" id="nc_rp"><label class="form-check-label small" for="nc_rp">Reports</label></div></div>
+                    <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="perm_allow_monitor" id="nc_mn"><label class="form-check-label small" for="nc_mn">Monitor</label></div></div>
+                    <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="perm_allow_quick_user" id="nc_qu"><label class="form-check-label small" for="nc_qu">Quick User</label></div></div>
+                    <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="perm_allow_mac_reset" id="nc_mr"><label class="form-check-label small" for="nc_mr">MAC Reset</label></div></div>
+                    <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="perm_allow_export_pdf" id="nc_ep"><label class="form-check-label small" for="nc_ep">Export PDF</label></div></div>
+                    <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="perm_allow_live_template" id="nc_lt"><label class="form-check-label small" for="nc_lt">Live Template</label></div></div>
+                    <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="perm_allow_router_manage" id="nc_rm"><label class="form-check-label small" for="nc_rm">Router Manage</label></div></div>
+                    <div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" name="perm_allow_port_lock" id="nc_pl"><label class="form-check-label small" for="nc_pl">Port Lock</label></div></div>
+                  </div>
+                  <div id="createPermResetNote" class="mt-2 text-muted" style="font-size:.67rem;display:none;"><i class="fa-solid fa-info-circle me-1 text-warning"></i>No permissions selected — user will have no access until permissions are granted.</div>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-sm w-100 fw-semibold" style="border-radius:8px;"><i class="fa-solid fa-plus me-1"></i>Save Account</button>
+              </form>
+            </div>
+          </div>
+          {% endif %}
+
+        </div>
+
+        {# RIGHT COLUMN — Users Table #}
+        <div class="col-xl-8 col-lg-7">
+          <div class="p-card">
+            <div class="p-card-head">
+              <div class="p-card-head-title">
+                <div class="ph-icon" style="background:rgba(37,99,235,.08);"><i class="fa-solid fa-users" style="color:#2563eb;"></i></div>
+                {% if sub_admin_mode is defined and sub_admin_mode %}My Users{% else %}Clients &amp; Routers{% endif %}
+                <span class="badge bg-secondary rounded-pill" style="font-size:.58rem;font-weight:500;">{{ users|length }}</span>
+              </div>
+              <div class="d-flex gap-2 flex-wrap align-items-center">
+                <div class="input-group input-group-sm" style="max-width:185px;">
+                  <span class="input-group-text border-0 px-2" style="background:var(--surface2);"><i class="fa-solid fa-search" style="font-size:.68rem;color:#94a3b8;"></i></span>
+                  <input id="adminUsersSearch" type="text" class="form-control border-0 ps-1" style="background:var(--surface2);font-size:.78rem;" placeholder="Search…">
+                </div>
+                {% if not (sub_admin_mode is defined and sub_admin_mode) %}
+                <select id="adminUsersRoleFilter" class="form-select form-select-sm" style="max-width:115px;font-size:.75rem;">
+                  <option value="all">All roles</option><option value="user">User</option><option value="sub-admin">Sub Admin</option>
+                </select>
+                {% endif %}
+                <select id="adminUsersPageSize" class="form-select form-select-sm" style="max-width:85px;font-size:.75rem;">
+                  <option value="10">10/page</option><option value="25">25/page</option><option value="50">50/page</option>
+                </select>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table id="adminUsersTable" class="table table-hover data-table mb-0">
+                <thead style="background:var(--surface2);">
+                  <tr><th class="px-3">Client</th><th class="hide-xs">Routers</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                  {% for u in users %}
+                  <tr data-role="{{ u.role }}" data-online="{{ 1 if (u.routers|selectattr('status','equalto','Online')|list|length)>0 else 0 }}">
+                    <td class="px-3" style="min-width:150px;">
+                      <div class="fw-semibold" style="font-size:.86rem;">{{ u.username }}</div>
+                      <div class="mt-1 d-flex flex-wrap gap-1">
+                        {% if u.role=='sub-admin' %}<span class="p-badge" style="background:rgba(245,158,11,.1);color:#92400e;border:1px solid rgba(245,158,11,.22);">Sub Admin</span>
+                        {% else %}<span class="p-badge" style="background:rgba(100,116,139,.08);color:#475569;border:1px solid rgba(100,116,139,.18);">User</span>{% endif %}
+                        {% if u.can_generate %}<span class="p-badge" style="background:rgba(37,99,235,.08);color:#1d4ed8;border:1px solid rgba(37,99,235,.18);">Voucher</span>{% endif %}
+                        {% if u.allow_reports %}<span class="p-badge" style="background:rgba(16,185,129,.08);color:#065f46;border:1px solid rgba(16,185,129,.18);">Reports</span>{% endif %}
+                        {% if u.allow_user_manage %}<span class="p-badge" style="background:rgba(99,102,241,.08);color:#4338ca;border:1px solid rgba(99,102,241,.18);">Users</span>{% endif %}
+                        {% if u.allow_profiles %}<span class="p-badge" style="background:rgba(245,158,11,.08);color:#92400e;border:1px solid rgba(245,158,11,.18);">Profiles</span>{% endif %}
+                        {% if u.allow_profile_edit %}<span class="p-badge" style="background:rgba(139,92,246,.08);color:#6d28d9;border:1px solid rgba(139,92,246,.18);">Profile Edit</span>{% endif %}
+                      </div>
+                      {# Router status badges — updated by background JS #}
+                      {% if u.routers %}
+                      <div class="mt-1 d-flex align-items-center gap-1" id="rstat-{{ u._id }}">
+                        <span style="font-size:.6rem;padding:1px 6px;border-radius:12px;background:rgba(99,102,241,.07);color:#6366f1;border:1px solid rgba(99,102,241,.12);">
+                          <i class="fa-solid fa-server me-1" style="font-size:.48rem;"></i>{{ u.routers|length }} router{{ 's' if u.routers|length != 1 else '' }}
+                        </span>
+                        <span class="rstat-online-{{ u._id }}" style="font-size:.6rem;padding:1px 6px;border-radius:12px;background:rgba(0,0,0,.04);color:#94a3b8;border:1px solid rgba(0,0,0,.06);">
+                          <i class="fa-solid fa-spinner fa-spin" style="font-size:.48rem;"></i>
+                        </span>
+                      </div>
+                      {% endif %}
+                    </td>
+                    <td class="hide-xs" style="min-width:220px;">
+                      {% for r in u.routers %}
+                      <div class="r-chip">
+                        <div style="min-width:0;flex:1;">
+                          <div class="fw-semibold text-truncate" style="font-size:.76rem;">{{ r.name }}</div>
+                          <div style="font-size:.62rem;margin-top:1px;"><span class="r-status-dot" data-router-id="{{ r.id }}" style="color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin" style="font-size:.5rem;"></i> Checking...</span>&nbsp;<span class="text-muted">{{ r.ip }}</span></div>
+                        </div>
+                        <div class="d-flex gap-1 flex-wrap justify-content-end">
+                          <a href="{{ url_for('admin.monitor_router') }}" class="qa btn btn-success btn-sm text-white">Monitor</a>
+                          <button class="qa btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editRouter{{ r.id }}">Edit</button>
+                          <a href="{{ url_for('admin.hotspot_users') }}" class="qa btn btn-outline-secondary btn-sm">Users</a>
+                          <a href="{{ url_for('admin.hotspot_profiles') }}" class="qa btn btn-outline-dark btn-sm">Profiles</a>
+                          <a href="{{ url_for('admin.delete_router', u_id=u._id, r_id=r.id) }}" class="qa btn btn-outline-danger btn-sm" onclick="return confirm('Delete router {{ r.name }}?')"><i class="fa-solid fa-trash"></i></a>
+                        </div>
+                      </div>
+                      <div class="modal fade" id="editRouter{{ r.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-sm"><form action="{{ url_for('admin.update_router') }}" method="POST" class="modal-content">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <div class="modal-header py-2"><h6 class="modal-title fw-bold" style="font-size:.88rem;"><i class="fa-solid fa-pen me-1 text-primary"></i>Edit Router</h6><button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button></div>
+                          <div class="modal-body">
+                            <input type="hidden" name="u_id" value="{{ u._id }}"><input type="hidden" name="r_id" value="{{ r.id }}">
+                            <input type="text" name="r_name" class="form-control form-control-sm mb-2" value="{{ r.name }}" placeholder="Router Name" required>
+                            <input type="text" name="r_ip" class="form-control form-control-sm mb-2" value="{{ r.ip }}" placeholder="IP:Port" required>
+                            <input type="text" name="r_user" class="form-control form-control-sm mb-2" value="{{ r.api_user or '' }}" placeholder="API User" required>
+                            <input type="password" name="r_pass" class="form-control form-control-sm mb-2" placeholder="API Pass (blank = keep)">
+                            <input type="text" name="dns_name" class="form-control form-control-sm mb-2" value="{{ r.dns_name or 'login.net' }}" placeholder="DNS/Login Name">
+                            <select name="currency" class="form-select form-select-sm">
+                              {% set cur = r.currency or 'AED' %}
+                              <option value="AED" {% if cur == 'AED' %}selected{% endif %}>AED — UAE Dirham</option>
+                              <option value="USD" {% if cur == 'USD' %}selected{% endif %}>USD — US Dollar</option>
+                              <option value="BDT" {% if cur == 'BDT' %}selected{% endif %}>BDT — Bangladeshi Taka</option>
+                              <option value="INR" {% if cur == 'INR' %}selected{% endif %}>INR — Indian Rupee</option>
+                              <option value="SAR" {% if cur == 'SAR' %}selected{% endif %}>SAR — Saudi Riyal</option>
+                              <option value="EUR" {% if cur == 'EUR' %}selected{% endif %}>EUR — Euro</option>
+                              <option value="GBP" {% if cur == 'GBP' %}selected{% endif %}>GBP — British Pound</option>
+                              <option value="PKR" {% if cur == 'PKR' %}selected{% endif %}>PKR — Pakistani Rupee</option>
+                              <option value="MYR" {% if cur == 'MYR' %}selected{% endif %}>MYR — Malaysian Ringgit</option>
+                              <option value="IDR" {% if cur == 'IDR' %}selected{% endif %}>IDR — Indonesian Rupiah</option>
+                              <option value="PHP" {% if cur == 'PHP' %}selected{% endif %}>PHP — Philippine Peso</option>
+                            </select>
+                          </div>
+                          <div class="modal-footer py-2"><button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary btn-sm">Update</button></div>
+                        </form></div>
+                      </div>
+                      {% else %}<span class="text-muted" style="font-size:.73rem;">No routers assigned</span>{% endfor %}
+                    </td>
+                    <td style="min-width:110px;">
+                      <div class="d-flex flex-wrap gap-1">
+                        <a href="{{ url_for('admin.login_as_user', user_id=u._id) }}" class="qa btn btn-sm btn-outline-primary" title="Login as user"><i class="fa-solid fa-right-to-bracket"></i></a>
+                        {% if not (sub_admin_mode is defined and sub_admin_mode) %}<button class="qa btn btn-sm btn-info text-white" data-bs-toggle="modal" data-bs-target="#addR{{ u._id }}" title="Add Router"><i class="fa-solid fa-plus"></i></button>{% endif %}
+                        {% if is_admin and u.role != 'admin' %}
+                        <button class="qa btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#permModal{{ u._id }}" title="Permissions"><i class="fa-solid fa-shield-halved"></i></button>
+                        <a href="{{ url_for('admin.ui_settings', user_id=u._id) }}" class="qa btn btn-sm btn-outline-secondary" title="UI Settings"><i class="fa-solid fa-desktop"></i></a>
+                        {% elif (sub_admin_mode is defined and sub_admin_mode) and u.role == 'user' %}
+                        <button class="qa btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#permModal{{ u._id }}" title="Permissions"><i class="fa-solid fa-shield-halved"></i></button>
+                        {% endif %}
+                        <a href="{{ url_for('admin.delete_user', id=u._id) }}" class="qa btn btn-sm btn-outline-danger" onclick="return confirm('Delete {{ u.username }}?')"><i class="fa-solid fa-trash"></i></a>
+                      </div>
+                      <div class="modal fade" id="addR{{ u._id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-sm"><form action="{{ url_for('admin.add_router_to_user') }}" method="POST" class="modal-content" id="addRForm{{ u._id }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <div class="modal-header py-2"><h6 class="modal-title fw-bold" style="font-size:.88rem;"><i class="fa-solid fa-server me-1 text-info"></i>Add Router — {{ u.username }}</h6><button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button></div>
+                          <div class="modal-body">
+                            <input type="hidden" name="u_id" value="{{ u._id }}">
+                            <div class="mb-2">
+                              <label class="small text-muted mb-1 fw-semibold" style="font-size:.72rem;">Copy from Existing Router</label>
+                              <select class="form-select form-select-sm" onchange="onExistingRouterSelect(this, '{{ u._id }}')">
+                                <option value="">— Enter manually —</option>
+                                {% for eu in users if eu.routers %}{% for er in eu.routers %}
+                                <option value="{{ er.id }}" data-name="{{ er.name }}" data-ip="{{ er.ip }}" data-user="{{ er.api_user }}" data-dns="{{ er.get('dns_name','login.net') }}" data-currency="{{ er.get('currency','AED') }}">{{ eu.username }} → {{ er.name }} ({{ er.ip }})</option>
+                                {% endfor %}{% endfor %}
+                              </select>
+                            </div>
+                            <div id="manualFields{{ u._id }}">
+                              <input type="text" name="r_name" class="form-control form-control-sm mb-2" placeholder="Router Name" required>
+                              <input type="text" name="r_ip" class="form-control form-control-sm mb-2" placeholder="IP:Port (e.g. 1.2.3.4:8728)" required>
+                              <input type="text" name="r_user" class="form-control form-control-sm mb-2" placeholder="API User" required>
+                              <input type="password" name="r_pass" class="form-control form-control-sm mb-2" placeholder="API Pass">
+                              <input type="text" name="dns_name" class="form-control form-control-sm mb-2" placeholder="DNS/Login Name" value="login.net">
+                              <select name="currency" class="form-select form-select-sm">
+                                <option value="AED">AED — UAE Dirham</option>
+                                <option value="USD">USD — US Dollar</option>
+                                <option value="BDT">BDT — Bangladeshi Taka</option>
+                                <option value="INR">INR — Indian Rupee</option>
+                                <option value="SAR">SAR — Saudi Riyal</option>
+                                <option value="EUR">EUR — Euro</option>
+                                <option value="GBP">GBP — British Pound</option>
+                                <option value="PKR">PKR — Pakistani Rupee</option>
+                                <option value="MYR">MYR — Malaysian Ringgit</option>
+                                <option value="IDR">IDR — Indonesian Rupiah</option>
+                                <option value="PHP">PHP — Philippine Peso</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div class="modal-footer py-2"><button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary btn-sm">Save Router</button></div>
+                        </form></div>
+                      </div>
+                      <div class="modal fade" id="permModal{{ u._id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-sm"><form action="{{ url_for('admin.update_user_permission', user_id=u._id) }}" method="POST" class="modal-content">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <div class="modal-header py-2"><h6 class="modal-title fw-bold" style="font-size:.88rem;"><i class="fa-solid fa-shield-halved me-1 text-warning"></i>{{ u.username }} — Permissions</h6><button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button></div>
+                          <div class="modal-body">
+                            {% if user_data.get('role')=='admin' %}<select name="u_role" class="form-select form-select-sm mb-3"><option value="user" {% if u.role=='user' %}selected{% endif %}>User</option><option value="sub-admin" {% if u.role=='sub-admin' %}selected{% endif %}>Sub Admin</option></select>{% else %}<input type="hidden" name="u_role" value="user">{% endif %}
+                            {% if user_data.get('role')=='admin' %}
+                            {% endif %}
+                            <div style="background:var(--surface2);border-radius:10px;padding:12px;">
+                              <div class="d-flex justify-content-between align-items-center mb-3"><span class="fw-semibold" style="font-size:.82rem;"><i class="fa-solid fa-shield-halved me-1 text-secondary"></i>Permissions</span><button type="submit" name="grant_all" value="1" class="btn btn-sm" style="font-size:.67rem;border-radius:7px;background:rgba(37,99,235,.08);color:#2563eb;border:1px solid rgba(37,99,235,.18);" onclick="this.form.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=true)"><i class="fa-solid fa-check-double me-1"></i>Grant All</button></div>
+                              <div class="text-muted mb-1" style="font-size:.62rem;letter-spacing:.5px;text-transform:uppercase;">Hotspot</div>
+                              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="can_generate" id="gc{{ u._id }}" {% if u.can_generate %}checked{% endif %}><label class="form-check-label small fw-semibold" for="gc{{ u._id }}">Voucher Generation</label></div>
+                              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="allow_user_manage" id="uc{{ u._id }}" {% if u.allow_user_manage %}checked{% endif %}><label class="form-check-label small fw-semibold" for="uc{{ u._id }}">Users Management</label></div>
+                              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="allow_profiles" id="pc{{ u._id }}" {% if u.allow_profiles %}checked{% endif %}><label class="form-check-label small fw-semibold" for="pc{{ u._id }}">Profiles (View)</label></div>
+                              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="allow_profile_edit" id="pe{{ u._id }}" {% if u.allow_profile_edit %}checked{% endif %}><label class="form-check-label small fw-semibold" for="pe{{ u._id }}">Profiles (Add/Edit)</label></div>
+                              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="allow_quick_user" id="qu{{ u._id }}" {% if u.allow_quick_user %}checked{% endif %}><label class="form-check-label small fw-semibold" for="qu{{ u._id }}">Quick User</label></div>
+                              <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="allow_mac_reset" id="mr{{ u._id }}" {% if u.allow_mac_reset %}checked{% endif %}><label class="form-check-label small fw-semibold" for="mr{{ u._id }}">MAC Reset</label></div>
+                              <div class="text-muted mb-1" style="font-size:.62rem;letter-spacing:.5px;text-transform:uppercase;">Reports &amp; Tools</div>
+                              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="allow_reports" id="rc{{ u._id }}" {% if u.allow_reports %}checked{% endif %}><label class="form-check-label small fw-semibold" for="rc{{ u._id }}">Sales Reports</label></div>
+                              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="allow_monitor" id="mn{{ u._id }}" {% if u.allow_monitor %}checked{% endif %}><label class="form-check-label small fw-semibold" for="mn{{ u._id }}">Monitor (Live Users)</label></div>
+                              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="allow_export_pdf" id="ep{{ u._id }}" {% if u.allow_export_pdf %}checked{% endif %}><label class="form-check-label small fw-semibold" for="ep{{ u._id }}">Export PDF</label></div>
+                              <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="allow_live_template" id="lt{{ u._id }}" {% if u.allow_live_template %}checked{% endif %}><label class="form-check-label small fw-semibold" for="lt{{ u._id }}">Live Template Editor</label></div>
+                              <div class="text-muted mb-1" style="font-size:.62rem;letter-spacing:.5px;text-transform:uppercase;">Management</div>
+                              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="allow_router_manage" id="rm{{ u._id }}" {% if u.allow_router_manage %}checked{% endif %}><label class="form-check-label small fw-semibold" for="rm{{ u._id }}">Router Management</label></div>
+                              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="allow_create_user" id="cu{{ u._id }}" {% if u.allow_create_user %}checked{% endif %}><label class="form-check-label small fw-semibold" for="cu{{ u._id }}">Create Users</label></div>
+                              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="allow_delete_user" id="du{{ u._id }}" {% if u.allow_delete_user %}checked{% endif %}><label class="form-check-label small fw-semibold" for="du{{ u._id }}">Delete Users</label></div>
+                              <div class="form-check"><input class="form-check-input" type="checkbox" name="allow_batch_delete" id="bd{{ u._id }}" {% if u.allow_batch_delete %}checked{% endif %}><label class="form-check-label small fw-semibold" for="bd{{ u._id }}">Batch Delete Logs</label></div>
+                              <div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="allow_port_lock" id="pl{{ u._id }}" {% if u.allow_port_lock %}checked{% endif %}><label class="form-check-label small fw-semibold" for="pl{{ u._id }}">Port Lock/Unlock</label></div>
+                            </div>
+                          </div>
+                          <div class="modal-footer py-2"><button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary btn-sm">Save Changes</button></div>
+                        </form></div>
+                      </div>
+                    </td>
+                  </tr>
+                  {% else %}
+                  <tr><td colspan="3" class="text-center py-5 text-muted"><i class="fa-solid fa-users-slash fa-2x mb-2 d-block opacity-20"></i>No users yet</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              <div id="adminUsersPager" class="px-3 py-2"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>{# /row #}
+
+      {# PENDING REGISTRATIONS — admin only #}
+      {% if not (sub_admin_mode is defined and sub_admin_mode) and user_data.get('role') == 'admin' and pending_users %}
+      <div class="p-card mb-4">
+        <div class="p-card-head">
+          <div class="p-card-head-title">
+            <div class="ph-icon" style="background:rgba(245,158,11,.1);"><i class="fa-solid fa-clock" style="color:#f59e0b;"></i></div>
+            Pending Registrations
+            <span class="badge bg-warning text-dark ms-2">{{ pending_users|length }}</span>
+          </div>
+        </div>
+        <div class="p-card-body p-0">
+          <table class="data-table mb-0">
+            <thead><tr><th>Username</th><th>Email</th><th>Company</th><th>Date</th><th class="text-end">Action</th></tr></thead>
+            <tbody>
+              {% for pu in pending_users %}
+              <tr>
+                <td><span class="fw-bold">{{ pu.username }}</span></td>
+                <td><span class="text-muted" style="font-size:.82rem;">{{ pu.email or '—' }}</span></td>
+                <td><span class="text-muted" style="font-size:.82rem;">{{ pu.company or '—' }}</span></td>
+                <td><span class="text-muted" style="font-size:.78rem;">{{ pu.created_at[:10] if pu.created_at else '—' }}</span></td>
+                <td class="text-end">
+                  <a href="{{ url_for('admin.approve_user', user_id=pu._id) }}" class="btn btn-success btn-sm" style="font-size:.72rem;border-radius:6px;" onclick="return confirm('Approve {{ pu.username }}?')"><i class="fa-solid fa-check me-1"></i>Approve</a>
+                  <a href="{{ url_for('admin.reject_user', user_id=pu._id) }}" class="btn btn-danger btn-sm" style="font-size:.72rem;border-radius:6px;" onclick="return confirm('Reject {{ pu.username }}?')"><i class="fa-solid fa-xmark me-1"></i>Reject</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
+      {# AUDIT LOGS — admin only #}
+      {% if not (sub_admin_mode is defined and sub_admin_mode) and user_data.get('role') == 'admin' %}
+      <div class="p-card mb-4 log-table-wrap">
+        <div class="p-card-head flex-wrap gap-2">
+          <div class="p-card-head-title">
+            <div class="ph-icon" style="background:rgba(99,102,241,.1);"><i class="fa-solid fa-shield-halved" style="color:#6366f1;"></i></div>
+            System Audit Logs
+            <span class="text-muted fw-normal" style="font-size:.7rem;">· last 500</span>
+          </div>
+          <div class="d-flex gap-2 flex-wrap align-items-center">
+            <div class="d-flex gap-1 flex-wrap">
+              <button onclick="adminLogFilter('all')" class="lf-pill active" data-filter="all">All</button>
+              <button onclick="adminLogFilter('login')" class="lf-pill" data-filter="login">Login</button>
+              <button onclick="adminLogFilter('voucher')" class="lf-pill" data-filter="voucher">Voucher</button>
+              <button onclick="adminLogFilter('delete')" class="lf-pill" data-filter="delete">Delete</button>
+              <button onclick="adminLogFilter('mac')" class="lf-pill" data-filter="mac">MAC</button>
+              <button onclick="adminLogFilter('permission')" class="lf-pill" data-filter="permission">Perms</button>
+            </div>
+            <input type="text" id="adminLogSearch" placeholder="Search…" class="form-control form-control-sm" style="width:140px;border-radius:8px;font-size:.76rem;" oninput="_applyAdminLogFilters()">
+          </div>
+        </div>
+
+        {# Desktop: table view #}
+        <div style="max-height:520px;overflow-y:auto;">
+          <table class="table table-hover mb-0" style="border-collapse:separate;border-spacing:0;">
+            <thead style="position:sticky;top:0;z-index:2;background:var(--surface2);backdrop-filter:blur(8px);">
+              <tr>
+                <th class="px-3 py-2 text-muted fw-bold" style="font-size:.6rem;letter-spacing:.7px;white-space:nowrap;border-bottom:2px solid var(--border);">TIME</th>
+                <th class="py-2 text-muted fw-bold" style="font-size:.6rem;letter-spacing:.7px;border-bottom:2px solid var(--border);">USER</th>
+                <th class="py-2 text-muted fw-bold" style="font-size:.6rem;letter-spacing:.7px;border-bottom:2px solid var(--border);">ACTION</th>
+                <th class="py-2 text-muted fw-bold hide-xs" style="font-size:.6rem;letter-spacing:.7px;border-bottom:2px solid var(--border);">DETAILS</th>
+              </tr>
+            </thead>
+            <tbody id="adminLogBody">
+              {% for log in logs %}
+              {% set act=(log.action or '')|lower %}
+              {% if 'login' in act and 'fail' not in act %}{% set fc='login' %}
+              {% elif 'logout' in act %}{% set fc='logout' %}
+              {% elif 'voucher' in act or 'generate' in act %}{% set fc='voucher' %}
+              {% elif 'delete' in act %}{% set fc='delete' %}
+              {% elif 'mac' in act %}{% set fc='mac' %}
+              {% elif 'permission' in act %}{% set fc='permission' %}
+              {% elif 'impersonate' in act %}{% set fc='impersonate' %}
+              {% elif 'create' in act %}{% set fc='create' %}
+              {% elif 'fail' in act or 'lock' in act %}{% set fc='fail' %}
+              {% else %}{% set fc='other' %}{% endif %}
+              <tr style="font-size:.82rem;transition:background .15s;" data-filter="{{ fc }}" data-user="{{ (log.username or '')|lower }}" data-action="{{ act }}" data-details="{{ (log.details or '')|lower }}">
+                <td class="px-3" style="white-space:nowrap;color:var(--muted);font-size:.68rem;font-family:'SF Mono','Fira Code',monospace;opacity:.7;">{{ log.timestamp }}</td>
+                <td><span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px 9px;font-size:.68rem;font-weight:700;"><i class="fa-solid fa-user" style="font-size:.44rem;opacity:.35;"></i>{{ log.username or '—' }}</span></td>
+                <td style="white-space:nowrap;">
+                  {% if 'login' in act and 'fail' not in act %}<span class="badge rounded-pill" style="background:rgba(34,197,94,.1);color:#15803d;border:1px solid rgba(34,197,94,.22);font-size:.6rem;"><i class="fa-solid fa-right-to-bracket me-1"></i>Login</span>
+                  {% elif 'logout' in act %}<span class="badge rounded-pill" style="background:rgba(100,116,139,.09);color:#475569;border:1px solid rgba(100,116,139,.18);font-size:.6rem;"><i class="fa-solid fa-right-from-bracket me-1"></i>Logout</span>
+                  {% elif 'voucher' in act or 'generate' in act %}<span class="badge rounded-pill" style="background:rgba(37,99,235,.09);color:#2563eb;border:1px solid rgba(37,99,235,.18);font-size:.6rem;"><i class="fa-solid fa-ticket me-1"></i>Voucher</span>
+                  {% elif 'bulk delete' in act %}<span class="badge rounded-pill" style="background:rgba(239,68,68,.12);color:#991b1b;border:1px solid rgba(239,68,68,.22);font-size:.6rem;"><i class="fa-solid fa-trash me-1"></i>Bulk Delete</span>
+                  {% elif 'delete hotspot' in act %}<span class="badge rounded-pill" style="background:rgba(239,68,68,.09);color:#b91c1c;border:1px solid rgba(239,68,68,.18);font-size:.6rem;"><i class="fa-solid fa-user-minus me-1"></i>Del Hotspot</span>
+                  {% elif 'delete account' in act %}<span class="badge rounded-pill" style="background:rgba(239,68,68,.12);color:#7f1d1d;border:1px solid rgba(239,68,68,.25);font-size:.6rem;"><i class="fa-solid fa-trash me-1"></i>Del Account</span>
+                  {% elif 'delete' in act %}<span class="badge rounded-pill" style="background:rgba(239,68,68,.09);color:#b91c1c;border:1px solid rgba(239,68,68,.18);font-size:.6rem;"><i class="fa-solid fa-trash me-1"></i>Delete</span>
+                  {% elif 'mac' in act %}<span class="badge rounded-pill" style="background:rgba(245,158,11,.09);color:#b45309;border:1px solid rgba(245,158,11,.22);font-size:.6rem;"><i class="fa-solid fa-rotate-left me-1"></i>MAC Reset</span>
+                  {% elif 'create' in act %}<span class="badge rounded-pill" style="background:rgba(34,197,94,.09);color:#166534;border:1px solid rgba(34,197,94,.18);font-size:.6rem;"><i class="fa-solid fa-user-plus me-1"></i>Create</span>
+                  {% elif 'impersonate' in act %}<span class="badge rounded-pill" style="background:rgba(168,85,247,.09);color:#7e22ce;border:1px solid rgba(168,85,247,.18);font-size:.6rem;"><i class="fa-solid fa-masks-theater me-1"></i>Impersonate</span>
+                  {% elif 'permission' in act %}<span class="badge rounded-pill" style="background:rgba(245,158,11,.09);color:#92400e;border:1px solid rgba(245,158,11,.18);font-size:.6rem;"><i class="fa-solid fa-shield-halved me-1"></i>Permission</span>
+                  {% elif 'fail' in act or 'lock' in act %}<span class="badge rounded-pill" style="background:rgba(239,68,68,.07);color:#dc2626;border:1px solid rgba(239,68,68,.14);font-size:.6rem;"><i class="fa-solid fa-lock me-1"></i>{{ log.action }}</span>
+                  {% else %}<span class="badge rounded-pill" style="background:rgba(99,102,241,.09);color:#4f46e5;border:1px solid rgba(99,102,241,.18);font-size:.6rem;"><i class="fa-solid fa-circle-info me-1"></i>{{ log.action }}</span>{% endif %}
+                </td>
+                <td class="hide-xs" style="max-width:250px;"><span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.76rem;color:var(--muted);" title="{{ log.details or '' }}">{{ log.details or '—' }}</span></td>
+              </tr>
+              {% else %}<tr><td colspan="4" class="text-center py-5 text-muted"><i class="fa-solid fa-inbox fa-2x mb-2 d-block opacity-20"></i>No logs yet</td></tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {# Mobile: card view — shows on <768px via CSS #}
+        <div class="log-mobile-cards" style="max-height:520px;overflow-y:auto;">
+          {% for log in logs %}
+          {% set act=(log.action or '')|lower %}
+          {% if 'login' in act and 'fail' not in act %}{% set fc='login' %}
+          {% elif 'logout' in act %}{% set fc='logout' %}
+          {% elif 'voucher' in act or 'generate' in act %}{% set fc='voucher' %}
+          {% elif 'delete' in act %}{% set fc='delete' %}
+          {% elif 'mac' in act %}{% set fc='mac' %}
+          {% elif 'permission' in act %}{% set fc='permission' %}
+          {% elif 'create' in act %}{% set fc='create' %}
+          {% elif 'fail' in act or 'lock' in act %}{% set fc='fail' %}
+          {% else %}{% set fc='other' %}{% endif %}
+          <div class="log-m-card lmc-{{ fc }}" data-filter="{{ fc }}" data-user="{{ (log.username or '')|lower }}" data-action="{{ act }}" data-details="{{ (log.details or '')|lower }}">
+            <div class="log-m-top">
+              <div class="log-m-user"><i class="fa-solid fa-user" style="font-size:.48rem;opacity:.5;"></i> {{ log.username or '—' }}</div>
+              <div class="log-m-time">{{ log.timestamp }}</div>
+            </div>
+            <div class="log-m-action">
+              {% if 'login' in act and 'fail' not in act %}<span class="badge rounded-pill" style="background:rgba(34,197,94,.1);color:#15803d;border:1px solid rgba(34,197,94,.22);font-size:.6rem;"><i class="fa-solid fa-right-to-bracket me-1"></i>Login</span>
+              {% elif 'logout' in act %}<span class="badge rounded-pill" style="background:rgba(100,116,139,.09);color:#475569;border:1px solid rgba(100,116,139,.18);font-size:.6rem;"><i class="fa-solid fa-right-from-bracket me-1"></i>Logout</span>
+              {% elif 'voucher' in act or 'generate' in act %}<span class="badge rounded-pill" style="background:rgba(37,99,235,.09);color:#2563eb;border:1px solid rgba(37,99,235,.18);font-size:.6rem;"><i class="fa-solid fa-ticket me-1"></i>Voucher</span>
+              {% elif 'delete' in act %}<span class="badge rounded-pill" style="background:rgba(239,68,68,.09);color:#b91c1c;border:1px solid rgba(239,68,68,.18);font-size:.6rem;"><i class="fa-solid fa-trash me-1"></i>Delete</span>
+              {% elif 'mac' in act %}<span class="badge rounded-pill" style="background:rgba(245,158,11,.09);color:#b45309;border:1px solid rgba(245,158,11,.22);font-size:.6rem;"><i class="fa-solid fa-rotate-left me-1"></i>MAC Reset</span>
+              {% elif 'permission' in act %}<span class="badge rounded-pill" style="background:rgba(245,158,11,.09);color:#92400e;border:1px solid rgba(245,158,11,.18);font-size:.6rem;"><i class="fa-solid fa-shield-halved me-1"></i>Permission</span>
+              {% elif 'create' in act %}<span class="badge rounded-pill" style="background:rgba(34,197,94,.09);color:#166534;border:1px solid rgba(34,197,94,.18);font-size:.6rem;"><i class="fa-solid fa-user-plus me-1"></i>Create</span>
+              {% elif 'fail' in act or 'lock' in act %}<span class="badge rounded-pill" style="background:rgba(239,68,68,.07);color:#dc2626;border:1px solid rgba(239,68,68,.14);font-size:.6rem;"><i class="fa-solid fa-lock me-1"></i>{{ log.action }}</span>
+              {% else %}<span class="badge rounded-pill" style="background:rgba(99,102,241,.09);color:#4f46e5;border:1px solid rgba(99,102,241,.18);font-size:.6rem;"><i class="fa-solid fa-circle-info me-1"></i>{{ log.action }}</span>{% endif %}
+            </div>
+            {% if log.details %}<div class="log-m-details">{{ log.details }}</div>{% endif %}
+          </div>
+          {% else %}
+          <div style="padding:40px;text-align:center;color:var(--muted);"><i class="fa-solid fa-inbox fa-2x mb-2 d-block opacity-20"></i>No logs yet</div>
+          {% endfor %}
+        </div>
+
+        <div class="px-4 py-2 border-top d-flex justify-content-between flex-wrap gap-1 text-muted" style="font-size:.67rem;background:var(--surface2);font-weight:600;">
+          <span id="adminLogCount"><i class="fa-solid fa-list me-1" style="font-size:.5rem;opacity:.4;"></i>{{ logs|length }} entries</span>
+          <span style="opacity:.6;">Newest first · max 500</span>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </main>
+</div>
+
+{% if request.endpoint != 'login' %}{% include 'partials/footer_ads.html' %}{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/toasts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/table_tools.js') }}"></script>
+<script>
+  document.addEventListener('scroll',()=>{const n=document.querySelector('.navbar');if(n)n.classList.toggle('scrolled',window.scrollY>10);});
+
+  const ft=document.getElementById('formToken');if(ft)ft.value='gen_'+Math.random().toString(36).substr(2,9);
+  const gf=document.getElementById('genForm');if(gf)gf.onsubmit=()=>{const b=document.getElementById('submitBtn');if(b){b.disabled=true;b.innerHTML='<i class="fa-solid fa-spinner fa-spin me-1"></i>Generating…';}};
+
+  function toggleRouterSection(){
+    const role=document.getElementById('addUserRole').value;
+    const note=document.getElementById('subAdminRouterNote'),manual=document.getElementById('manualRouterFields'),wrap=document.getElementById('copyRouterWrap');
+    if(role==='sub-admin'){if(note)note.style.display='block';if(manual)manual.style.display='none';if(wrap)wrap.style.display='none';['r_name','r_ip','r_user'].forEach(id=>{const e=document.getElementById(id);if(e)e.required=false;});}
+    else{if(note)note.style.display='none';if(wrap)wrap.style.display='block';onCopyRouterChange();}
+  }
+  function onCopyRouterChange(){
+    const val=document.getElementById('copyRouterFrom')?.value;
+    const m=document.getElementById('manualRouterFields');if(!m)return;
+    m.style.display=val?'none':'block';
+    ['r_name','r_ip','r_user'].forEach(id=>{const e=document.getElementById(id);if(e)e.required=!val&&document.getElementById('addUserRole')?.value!=='sub-admin';});
+  }
+  function createGrantAll(){
+    document.querySelectorAll('#createPermSection input[type=checkbox]').forEach(c=>c.checked=true);
+    const note=document.getElementById('createPermResetNote');if(note)note.style.display='none';
+  }
+
+  // Fill manual fields when an existing router is selected from dropdown
+  function onExistingRouterSelect(sel, uid) {
+    const opt = sel.options[sel.selectedIndex];
+    const fields = document.getElementById('manualFields' + uid);
+    if (!fields) return;
+    if (!sel.value) {
+      // Reset to empty for manual entry
+      fields.querySelectorAll('input[name="r_name"]')[0].value = '';
+      fields.querySelectorAll('input[name="r_ip"]')[0].value = '';
+      fields.querySelectorAll('input[name="r_user"]')[0].value = '';
+      fields.querySelectorAll('input[name="r_pass"]')[0].value = '';
+      fields.querySelectorAll('input[name="dns_name"]')[0].value = 'login.net';
+      return;
+    }
+    // Auto-fill from data attributes
+    const name = opt.getAttribute('data-name') || '';
+    const ip = opt.getAttribute('data-ip') || '';
+    const user = opt.getAttribute('data-user') || '';
+    const dns = opt.getAttribute('data-dns') || 'login.net';
+    const currency = opt.getAttribute('data-currency') || 'AED';
+    fields.querySelectorAll('input[name="r_name"]')[0].value = name;
+    fields.querySelectorAll('input[name="r_ip"]')[0].value = ip;
+    fields.querySelectorAll('input[name="r_user"]')[0].value = user;
+    fields.querySelectorAll('input[name="r_pass"]')[0].value = '';
+    fields.querySelectorAll('input[name="dns_name"]')[0].value = dns;
+    const currSel = fields.querySelector('select[name="currency"]');
+    if (currSel) currSel.value = currency;
+  }
+  document.addEventListener('DOMContentLoaded',()=>{
+    onCopyRouterChange();
+    // Show/hide "no permissions" note when checkboxes change
+    const permBoxes=document.querySelectorAll('#createPermSection input[type=checkbox]');
+    const note=document.getElementById('createPermResetNote');
+    function checkPerms(){
+      if(!note)return;
+      const anyChecked=[...permBoxes].some(c=>c.checked);
+      note.style.display=anyChecked?'none':'block';
+    }
+    permBoxes.forEach(c=>c.addEventListener('change',checkPerms));
+  });
+  document.addEventListener('DOMContentLoaded',function(){
+    if(typeof TableTools!=='undefined')new TableTools({table:'#adminUsersTable',search:'#adminUsersSearch',pager:'#adminUsersPager',pageSize:10,pageSizeSelect:'#adminUsersPageSize',filters:[{select:'#adminUsersRoleFilter',attr:'role'}]});
+  });
+
+  let _lf='all';
+  function adminLogFilter(f){_lf=f;document.querySelectorAll('.lf-pill').forEach(p=>p.classList.toggle('active',p.dataset.filter===f));_applyAdminLogFilters();}
+  function _applyAdminLogFilters(){
+    const q=(document.getElementById('adminLogSearch')?.value||'').toLowerCase().trim();
+    let vis=0;
+    // Desktop table rows
+    document.querySelectorAll('#adminLogBody tr[data-filter]').forEach(r=>{
+      const mf=_lf==='all'||r.dataset.filter===_lf||((_lf==='login')&&(r.dataset.filter==='login'||r.dataset.filter==='logout'));
+      const ms=!q||r.dataset.user.includes(q)||r.dataset.action.includes(q)||r.dataset.details.includes(q);
+      r.style.display=(mf&&ms)?'':'none';if(mf&&ms)vis++;
+    });
+    // Mobile log cards
+    document.querySelectorAll('.log-m-card[data-filter]').forEach(r=>{
+      const mf=_lf==='all'||r.dataset.filter===_lf||((_lf==='login')&&(r.dataset.filter==='login'||r.dataset.filter==='logout'));
+      const ms=!q||r.dataset.user.includes(q)||r.dataset.action.includes(q)||r.dataset.details.includes(q);
+      r.style.display=(mf&&ms)?'':'none';
+    });
+    const c=document.getElementById('adminLogCount');if(c)c.innerHTML='<i class="fa-solid fa-list me-1" style="font-size:.5rem;opacity:.4;"></i>'+vis+' entries';
+  }
+
+  /* ═══════════════════════════════════════════════════
+     BACKGROUND ROUTER STATUS FETCHER
+  ═══════════════════════════════════════════════════ */
+  (function() {
+    const ACCENT = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#2563eb';
+    function isDark() { return document.documentElement.getAttribute('data-bs-theme') === 'dark'; }
+
+    function buildCarousel(routers) {
+      const skeleton  = document.getElementById('rSkeletonWrap');
+      const sliderOuter = document.getElementById('rSliderOuter');
+      const slider    = document.getElementById('rSlider');
+      const dots      = document.getElementById('rDots');
+      const navBtns   = document.getElementById('rNavBtns');
+      const totalBadge= document.getElementById('rTotalBadge');
+      const label     = document.getElementById('rCardLabel');
+      const summary   = document.getElementById('rStatusSummary');
+
+      if (!slider) return;
+
+      const dk = isDark();
+      const online  = routers.filter(r=>r.status==='Online').length;
+      const offline = routers.length - online;
+
+      if (totalBadge) totalBadge.textContent = routers.length;
+      if (summary) {
+        summary.innerHTML =
+          `<span style="color:#16a34a;font-weight:600;"><i class="fa-solid fa-circle" style="font-size:.45rem;"></i> ${online} online</span>` +
+          (offline ? `&nbsp;<span style="color:#dc2626;font-weight:600;"><i class="fa-solid fa-circle" style="font-size:.45rem;"></i> ${offline} offline</span>` : '');
+      }
+
+      // Build cards with theme-aware colors
+      slider.innerHTML = routers.map(r => {
+        const isOn = r.status === 'Online';
+        const bg = isOn
+          ? (dk ? 'linear-gradient(135deg,rgba(37,99,235,.08),rgba(16,185,129,.04))' : 'linear-gradient(135deg,rgba(37,99,235,.04),rgba(16,185,129,.02))')
+          : (dk ? 'rgba(220,38,38,.06)' : 'transparent');
+        const bdr = isOn
+          ? `border-color:rgba(37,99,235,${dk?'.3':'.2'});`
+          : `border-color:rgba(220,38,38,${dk?'.25':'.15'});`;
+
+        const statusBadge = isOn
+          ? `<span style="font-size:.67rem;padding:3px 10px;border-radius:20px;background:rgba(22,163,74,.12);color:#16a34a;border:1px solid rgba(22,163,74,.25);font-weight:600;">
+              <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#16a34a;margin-right:4px;vertical-align:middle;animation:pulse-green 2s infinite;"></span>Online</span>`
+          : `<span style="font-size:.67rem;padding:3px 10px;border-radius:20px;background:rgba(220,38,38,.08);color:#dc2626;border:1px solid rgba(220,38,38,.2);font-weight:600;">
+              <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#dc2626;margin-right:4px;vertical-align:middle;"></span>Offline</span>`;
+
+        const txtCol = dk ? '#e2e8f0' : 'inherit';
+        const mutedCol = dk ? '#94a3b8' : '#64748b';
+        const subBg = dk ? 'var(--surface2,#162033)' : 'var(--surface2)';
+        const valCol = dk ? '#f1f5f9' : 'inherit';
+
+        let body;
+        if (isOn) {
+          const cpuC = r.cpu_load>80?'#ef4444':r.cpu_load>50?'#f59e0b':'#16a34a';
+          const memC = r.mem_pct>80?'#ef4444':r.mem_pct>60?'#f59e0b':'#3b82f6';
+          body = `<div class="rcard-grid p-3" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+            <div style="background:${subBg};border-radius:var(--ri,12px);padding:10px;"><div class="stat-label">CPU</div><div class="fw-bold" style="font-size:1.05rem;color:${cpuC};">${r.cpu_load}%</div><div class="prog"><div class="prog-fill" style="width:${r.cpu_load}%;background:${cpuC};"></div></div></div>
+            <div style="background:${subBg};border-radius:var(--ri,12px);padding:10px;"><div class="stat-label">RAM</div><div class="fw-bold" style="font-size:1.05rem;color:${memC};">${r.mem_pct}%</div><div class="prog"><div class="prog-fill" style="width:${r.mem_pct}%;background:${memC};"></div></div><div style="font-size:.57rem;color:${mutedCol};margin-top:3px;">${r.free_mem} free</div></div>
+            <div style="background:${subBg};border-radius:var(--ri,12px);padding:10px;"><div class="stat-label">Active</div><div class="fw-bold d-flex align-items-center gap-1" style="font-size:1.05rem;color:${valCol};"><span style="width:6px;height:6px;border-radius:50%;background:#16a34a;display:inline-block;"></span>${r.active_users}</div></div>
+            <div style="background:${subBg};border-radius:var(--ri,12px);padding:10px;overflow:hidden;"><div class="stat-label">Uptime</div><div class="fw-bold" style="font-size:.73rem;line-height:1.35;color:${valCol};" title="${r.uptime||''}">${r.uptime||'—'}</div></div>
+          </div>
+          ${(r.board||r.version)?`<div style="padding:0 16px 12px;display:flex;gap:5px;flex-wrap:wrap;">
+            ${r.board?`<span style="font-size:.63rem;padding:2px 8px;border-radius:20px;background:rgba(99,102,241,.07);color:#818cf8;border:1px solid rgba(99,102,241,.14);"><i class="fa-solid fa-microchip me-1" style="font-size:.52rem;"></i>${r.board}</span>`:''}
+            ${r.version?`<span style="font-size:.63rem;padding:2px 8px;border-radius:20px;background:rgba(16,185,129,.07);color:#34d399;border:1px solid rgba(16,185,129,.14);">v${r.version}</span>`:''}
+          </div>`:''}
+          `
+          ;
+        } else {
+          body = `<div style="padding:28px;text-align:center;color:${mutedCol};"><i class="fa-solid fa-plug-circle-xmark" style="font-size:1.5rem;opacity:.2;display:block;margin-bottom:8px;"></i><div style="font-size:.75rem;">Cannot connect</div></div>`;
+        }
+
+        return `<div class="flex-shrink-0 w-100 p-card" style="${bdr}">
+          <div class="p-card-head" style="background:${bg};">
+            <div>
+              <div class="fw-bold" style="font-size:.95rem;color:${txtCol};">${r.name}</div>
+              <div style="font-size:.7rem;margin-top:1px;color:${mutedCol};">
+                <i class="fa-solid fa-user" style="font-size:.56rem;margin-right:3px;"></i>${r.owner}${r.identity?' · <em>'+r.identity+'</em>':''} · ${r.ip||''}
+              </div>
+            </div>
+            ${statusBadge}
+          </div>
+          ${body}
+        </div>`;
+      }).join('');
+
+      // Dots
+      const dotActive = dk ? 'var(--accent,#2563eb)' : 'var(--accent,#2563eb)';
+      const dotInactive = dk ? 'rgba(255,255,255,.15)' : 'rgba(0,0,0,.14)';
+      if (dots && routers.length > 1) {
+        dots.innerHTML = routers.map((_,i)=>
+          `<div onclick="rGoTo(${i})" class="r-dot" style="height:5px;border-radius:3px;cursor:pointer;transition:.25s;background:${i===0?dotActive:dotInactive};width:${i===0?'16px':'5px'};"></div>`
+        ).join('');
+      }
+
+      if (skeleton) skeleton.style.display = 'none';
+      if (sliderOuter) sliderOuter.style.display = '';
+      if (routers.length > 1 && navBtns) navBtns.style.removeProperty('display');
+      if (label) label.textContent = routers.length > 1 ? `1 / ${routers.length}` : '';
+
+      // Carousel logic
+      let cur = 0;
+      const dotAct = dotActive, dotIn = dotInactive;
+      function gW(){return sliderOuter ? sliderOuter.offsetWidth : 0;}
+      function go(i){
+        cur=Math.max(0,Math.min(i,routers.length-1));
+        slider.style.transform=`translateX(-${cur*gW()}px)`;
+        if(label && routers.length>1) label.textContent=`${cur+1} / ${routers.length}`;
+        const bp=document.getElementById('rBtnPrev'),bn=document.getElementById('rBtnNext');
+        if(bp)bp.disabled=cur===0;if(bn)bn.disabled=cur===routers.length-1;
+        document.querySelectorAll('.r-dot').forEach((d,j)=>{d.style.background=j===cur?dotAct:dotIn;d.style.width=j===cur?'16px':'5px';});
+      }
+      window.rNext=()=>go(cur+1);window.rPrev=()=>go(cur-1);window.rGoTo=i=>go(i);
+      window.addEventListener('resize',()=>{slider.style.transition='none';go(cur);setTimeout(()=>slider.style.transition='transform .35s cubic-bezier(.4,0,.2,1)',50);});
+      let tx=0;
+      slider.addEventListener('touchstart',e=>tx=e.touches[0].clientX,{passive:true});
+      slider.addEventListener('touchend',e=>{const d=tx-e.changedTouches[0].clientX;if(Math.abs(d)>40)go(cur+(d>0?1:-1));},{passive:true});
+      go(0);
+    }
+
+    function updateTableBadges(routers) {
+      // Group by owner_id
+      const byOwner = {};
+      routers.forEach(r => {
+        const oid = r.owner_id || '';
+        if (!byOwner[oid]) byOwner[oid] = {online:0, offline:0};
+        if (r.status === 'Online') byOwner[oid].online++;
+        else byOwner[oid].offline++;
+      });
+
+      // Update each user row badge
+      Object.entries(byOwner).forEach(([oid, counts]) => {
+        const el = document.querySelector(`.rstat-online-${oid}`);
+        if (!el) return;
+        const parts = [];
+        if (counts.online)  parts.push(`<i class="fa-solid fa-circle" style="font-size:.42rem;color:#16a34a;"></i> ${counts.online}`);
+        if (counts.offline) parts.push(`<i class="fa-solid fa-circle" style="font-size:.42rem;color:#dc2626;"></i> ${counts.offline}`);
+        el.style.background = counts.online ? 'rgba(34,197,94,.08)' : 'rgba(239,68,68,.06)';
+        el.style.color       = counts.online ? '#16a34a'            : '#dc2626';
+        el.style.border      = counts.online ? '1px solid rgba(34,197,94,.2)' : '1px solid rgba(239,68,68,.15)';
+        el.innerHTML         = parts.join(' &nbsp;');
+      });
+
+      // Update individual per-router status dots (r-status-dot[data-router-id])
+      routers.forEach(r => {
+        const dot = document.querySelector(`.r-status-dot[data-router-id="${r.id}"]`);
+        if (!dot) return;
+        if (r.status === 'Online') {
+          dot.innerHTML = `<i class="fa-solid fa-circle" style="font-size:.5rem;color:#16a34a;"></i> <span style="color:#16a34a;font-weight:600;">Online</span>`;
+        } else {
+          dot.innerHTML = `<i class="fa-solid fa-circle" style="font-size:.5rem;color:#dc2626;"></i> <span style="color:#dc2626;">Offline</span>`;
+        }
+      });
+    }
+
+    // Kick off SSE stream after page load — updates each router as it comes in
+    window.addEventListener('load', function() {
+      let es;
+      try { es = new EventSource('{{ url_for("dashboard.api_router_status") }}'); } catch(e) { console.error('SSE init failed:', e); return; }
+      const accumulated = [];
+      console.log('[RouterStatus] SSE started');
+      let timeout = setTimeout(function() {
+        // Failsafe: if SSE takes >30s, show what we have
+        console.warn('[RouterStatus] SSE timeout, showing', accumulated.length, 'partial results');
+        if (accumulated.length) { buildCarousel(accumulated); updateTableBadges(accumulated); }
+        try { es.close(); } catch(e) {}
+      }, 30000);
+
+      es.onmessage = function(e) {
+        try {
+          const msg = JSON.parse(e.data);
+
+          if (msg.router) {
+            // Single router result — update table badge immediately
+            accumulated.push(msg.router);
+            updateTableBadges([msg.router]);
+            console.log('[RouterStatus]', msg.router.name, '→', msg.router.status);
+          }
+
+          if (msg.done) {
+            // All done — rebuild carousel with full list
+            clearTimeout(timeout);
+            const all = msg.routers || accumulated;
+            console.log('[RouterStatus] Done:', all.length, 'routers,', all.filter(r=>r.status==='Online').length, 'online');
+            buildCarousel(all);
+            updateTableBadges(all);
+            es.close();
+          }
+        } catch(err) { console.error('[RouterStatus] parse error:', err); }
+      };
+
+      es.onerror = function(e) {
+        clearTimeout(timeout);
+        console.error('[RouterStatus] SSE error, readyState:', es.readyState, '— trying JSON fallback');
+        es.close();
+        // If we got partial results, show them
+        if (accumulated.length) {
+          buildCarousel(accumulated);
+          updateTableBadges(accumulated);
+        } else {
+          // JSON fallback — SSE might fail due to proxy buffering or mobile browser issues
+          fetch('{{ url_for("dashboard.api_router_status_json") }}')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              if (data.ok && data.routers && data.routers.length) {
+                console.log('[RouterStatus] JSON fallback:', data.routers.length, 'routers');
+                buildCarousel(data.routers);
+                updateTableBadges(data.routers);
+              } else {
+                var skeleton = document.getElementById('rSkeletonWrap');
+                if (skeleton && skeleton.style.display !== 'none') {
+                  skeleton.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted,#94a3b8);font-size:.8rem;"><i class="fa-solid fa-triangle-exclamation" style="margin-right:4px;"></i>Router status unavailable</div>';
+                }
+              }
+            })
+            .catch(function(err) {
+              console.error('[RouterStatus] JSON fallback also failed:', err);
+              var skeleton = document.getElementById('rSkeletonWrap');
+              if (skeleton && skeleton.style.display !== 'none') {
+                skeleton.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted,#94a3b8);font-size:.8rem;"><i class="fa-solid fa-triangle-exclamation" style="margin-right:4px;"></i>Router status unavailable</div>';
+              }
+            });
+        }
+      };
+    });
+  })();
+  /* Pulse animation for online dot */
+  var pulseStyle = document.createElement('style');
+  pulseStyle.textContent = '@keyframes pulse-green{0%,100%{opacity:1;}50%{opacity:.4;}}';
+  document.head.appendChild(pulseStyle);
+
+  /* Fix: Move modals to <body> so they aren't clipped by overflow:hidden parents */
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.modal').forEach(function(modal) {
+      document.body.appendChild(modal);
+    });
+  });
+</script>
+</body>
+</html>

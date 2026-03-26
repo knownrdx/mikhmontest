@@ -1,0 +1,139 @@
+
+{% set ep = current_endpoint %}
+{% set rid = selected_router.id if selected_router else None %}
+{% set _cg = (can_generate    if can_generate    is defined else (user_data.get('can_generate')      if user_data else False)) %}
+{% set _cr = (can_reports     if can_reports     is defined else (user_data.get('allow_reports')     if user_data else False)) %}
+{% set _cu = (can_user_manage if can_user_manage is defined else (user_data.get('allow_user_manage') if user_data else False)) %}
+{% set _cp = (can_profiles    if can_profiles    is defined else (user_data.get('allow_profiles')    if user_data else False)) %}
+{% set _cpl = (can_port_lock   if can_port_lock   is defined else (user_data.get('allow_port_lock')   if user_data else False)) %}
+
+<div class="sidebar-brand px-3 py-3 border-bottom">
+  <div class="fw-bold"><i class="fa-solid fa-user-gear me-2 text-accent"></i>Sub Admin</div>
+  <div class="small text-muted">{{ user_data.username if user_data else '' }}</div>
+</div>
+
+{# ── Router switcher ── #}
+{% if all_routers and all_routers|length > 0 %}
+<div class="px-3 py-2 border-bottom">
+  <div class="text-muted mb-1" style="font-size:.65rem;letter-spacing:.5px;text-transform:uppercase;">Router</div>
+  {% if all_routers|length == 1 %}
+    <div class="d-flex align-items-center gap-2 px-2 py-1 rounded-2"
+         style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.15);">
+      <span style="width:6px;height:6px;border-radius:50%;background:#16a34a;flex-shrink:0;"></span>
+      <span class="fw-semibold text-truncate" style="font-size:.8rem;">{{ all_routers[0].name }}</span>
+    </div>
+  {% else %}
+    <div class="dropdown w-100">
+      <button class="btn btn-sm w-100 text-start d-flex align-items-center justify-content-between"
+              style="border:1px solid rgba(37,99,235,.2);border-radius:8px;background:rgba(37,99,235,.06);color:var(--text,#1e293b);"
+              data-bs-toggle="dropdown">
+        <span class="d-flex align-items-center gap-2">
+          <span style="width:6px;height:6px;border-radius:50%;background:#16a34a;flex-shrink:0;"></span>
+          <span class="text-truncate fw-semibold" style="font-size:.8rem;max-width:140px;">
+            {{ selected_router.name if selected_router else 'Select Router' }}
+          </span>
+        </span>
+        <i class="fa-solid fa-chevron-down" style="font-size:.65rem;opacity:.6;"></i>
+      </button>
+      <ul class="dropdown-menu w-100 shadow-sm" style="font-size:.82rem;border-radius:10px;min-width:0;">
+        {% for r in all_routers %}
+        <li>
+          <a class="dropdown-item d-flex align-items-center justify-content-between py-2
+                    {% if selected_router and r.id == selected_router.id %}active{% endif %}"
+             href="{{ url_for('dashboard.dashboard', router_id=r.id) }}">
+            <span>{{ r.name }}</span>
+            {% if selected_router and r.id == selected_router.id %}
+              <i class="fa-solid fa-check text-success" style="font-size:.7rem;"></i>
+            {% endif %}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<ul class="nav flex-column py-2">
+
+  <li class="nav-item">
+    <a class="nav-link {% if ep in ('dashboard.staff_panel','dashboard.dashboard') %}active{% endif %}"
+       href="{{ url_for('dashboard.dashboard', router_id=rid) }}">
+      <i class="fa-solid fa-gauge me-2"></i>Dashboard
+    </a>
+  </li>
+
+  {% if _cg %}
+  <li class="nav-item">
+    <a class="nav-link {% if ep=='admin.create_vouchers_page' %}active{% endif %}"
+       href="{{ url_for('admin.create_vouchers_page') }}">
+      <i class="fa-solid fa-ticket me-2"></i>Vouchers
+    </a>
+  </li>
+  {% endif %}
+
+  {% if _cu %}
+  <li class="nav-item">
+    <a class="nav-link {% if ep=='admin.hotspot_users' %}active{% endif %}"
+       href="{{ url_for('admin.hotspot_users') }}">
+      <i class="fa-solid fa-users me-2"></i>Hotspot Users
+    </a>
+  </li>
+  {% endif %}
+
+  {% if _cp %}
+  <li class="nav-item">
+    <a class="nav-link {% if ep=='admin.hotspot_profiles' %}active{% endif %}"
+       href="{{ url_for('admin.hotspot_profiles') }}">
+      <i class="fa-solid fa-layer-group me-2"></i>Profiles
+    </a>
+  </li>
+  {% endif %}
+
+  {% if _cpl %}
+  <li class="nav-item">
+    <a class="nav-link {% if ep=='admin.port_lock_page' %}active{% endif %}"
+       href="{{ url_for('admin.port_lock_page') }}">
+      <i class="fa-solid fa-lock me-2"></i>Port Lock
+    </a>
+  </li>
+  {% endif %}
+
+  {% if _cr %}
+  <li class="nav-item">
+    <div class="nav-link text-muted pb-1 pt-3" style="font-size:.65rem;letter-spacing:.5px;text-transform:uppercase;">Reports</div>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if ep=='admin.sales_report' %}active{% endif %}"
+       href="{{ url_for('admin.sales_report') if rid else url_for('dashboard.dashboard') }}">
+      <i class="fa-solid fa-chart-line me-2"></i>Sales
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if ep=='admin.monitor_router' %}active{% endif %}"
+       href="{{ url_for('admin.monitor_router') if rid else url_for('dashboard.dashboard') }}">
+      <i class="fa-solid fa-wave-square me-2"></i>Monitor
+    </a>
+  </li>
+  {% endif %}
+
+  <li class="nav-item" style="margin-top:8px;border-top:1px solid var(--border,#e2e8f0);padding-top:8px;">
+    <a class="nav-link {% if ep=='dashboard.profile' %}active{% endif %}"
+       href="{{ url_for('dashboard.profile') }}">
+      <i class="fa-solid fa-id-card me-2"></i>Profile
+    </a>
+  </li>
+
+  <li class="nav-item">
+    <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">
+      <i class="fa-solid fa-right-from-bracket me-2"></i>Logout
+    </a>
+  </li>
+
+</ul>
+
+<div style="padding:12px 16px;border-top:1px solid var(--border,#e2e8f0);margin-top:4px;">
+  <div style="font-size:.65rem;color:var(--muted,#94a3b8);text-align:center;">
+    {{ BRAND_NAME }} <span style="opacity:.6;">v{{ APP_VERSION }}</span>
+  </div>
+</div>

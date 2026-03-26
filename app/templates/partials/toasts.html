@@ -1,0 +1,10 @@
+{# Include this partial in templates to enable modern toast notifications.
+   Place before closing </body> tag, after Bootstrap JS.
+   
+   Usage: {% include 'partials/toasts.html' %}
+   
+   Toasts auto-convert Flask flash messages. 
+   You can also call: showToast('success', 'Title', 'Message') from JS.
+#}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/toasts.css') }}">
+<script src="{{ url_for('static', filename='js/toasts.js') }}"></script>

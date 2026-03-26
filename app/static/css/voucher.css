@@ -1,0 +1,28 @@
+/* ডার্ক এবং লাইট থিমের জন্য ব্যাকগ্রাউন্ড কাস্টমাইজেশন */
+        [data-bs-theme="dark"] body { background-color: var(--bg); color: var(--text); }
+        [data-bs-theme="light"] body { background-color: var(--bg); color: var(--text); }
+        
+        .voucher-card { 
+            max-width: 750px; margin: 30px auto; 
+            border-radius: 16px; border: none; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2); 
+            transition: background-color 0.3s ease;
+        }
+
+        [data-bs-theme="dark"] .voucher-card { background: var(--surface); }
+        [data-bs-theme="light"] .voucher-card { background: var(--surface); }
+
+        .form-label { font-weight: 600; font-size: 0.85rem; color: var(--muted); margin-bottom: 8px; }
+        
+        /* ইনপুট ফিল্ড স্টাইল */
+        .form-control, .form-select { border: 1px solid var(--border); padding: 12px; transition: 0.3s; background: var(--surface); color: var(--text); }
+        [data-bs-theme="dark"] .form-control, [data-bs-theme="dark"] .form-select { background: var(--surface); color: var(--text); }
+        [data-bs-theme="light"] .form-control, [data-bs-theme="light"] .form-select { background: var(--surface); color: var(--text); border-color: var(--border); }
+
+        .section-header { border-bottom: 1px solid rgba(160, 160, 160, 0.2); padding-bottom: 20px; margin-bottom: 30px; }
+        .btn-generate { 
+            background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 55%, #000) 100%); 
+            border: none; padding: 15px; font-size: 1.1rem; font-weight: bold;
+        }
+        .router-info-badge { background: var(--accent-10); color: var(--accent); padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; }
+        .loading-text { font-size: 0.75rem; color: var(--muted); display: none; }

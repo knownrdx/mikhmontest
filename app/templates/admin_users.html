@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>All Users — {{ BRAND_NAME }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_layout.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_panel.css') }}">
+  <style>
+    :root { --accent: {{ BRAND_ACCENT|default('#2563eb') }}; }
+
+    .user-card {
+      border-radius: 16px;
+      border: 1px solid var(--border, #e2e8f0);
+      background: var(--surface, #fff);
+      transition: all .25s cubic-bezier(.4,0,.2,1);
+      box-shadow: 0 1px 6px rgba(0,0,0,.03);
+    }
+    .user-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,.09); transform: translateY(-2px); }
+
+    .router-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: .7rem; font-weight: 700; padding: 4px 10px;
+      border-radius: 99px; border: 1px solid;
+      transition: all .2s;
+    }
+    .router-chip.online  { background: rgba(34,197,94,.08);  color: #16a34a; border-color: rgba(34,197,94,.25); }
+    .router-chip.offline { background: rgba(239,68,68,.07);  color: #dc2626; border-color: rgba(239,68,68,.2); }
+    .router-chip.checking { background: rgba(148,163,184,.07); color: #94a3b8; border-color: rgba(148,163,184,.2); }
+    .router-chip.online:hover { background: rgba(34,197,94,.14); }
+    .router-chip.offline:hover { background: rgba(239,68,68,.12); }
+
+    .perm-chip {
+      display: inline-block; font-size: .6rem; font-weight: 700; padding: 2px 7px;
+      border-radius: 5px; letter-spacing: .02em;
+    }
+
+    #usersSearch:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    .filter-btn { border-radius: 99px; font-size: .75rem; font-weight: 700; padding: 5px 16px; transition: all .2s; }
+    .filter-btn:hover { transform: translateY(-1px); }
+    .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 3px 12px rgba(37,99,235,.25); }
+
+    /* Page header */
+    .page-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding: 16px 20px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border, rgba(0,0,0,.06)); box-shadow: 0 1px 6px rgba(0,0,0,.03); }
+    .page-header h5 { margin: 0; font-weight: 800; font-size: 1.05rem; letter-spacing: -.01em; }
+
+    /* empty state */
+    .empty-state { padding: 60px 20px; text-align: center; }
+    .empty-state .ei { font-size: 3rem; opacity: .2; margin-bottom: 12px; }
+
+    @media (max-width: 767px) {
+      .page-header { padding: 12px 14px; border-radius: 12px; }
+      .page-header h5 { font-size: .92rem; }
+    }
+  </style>
+  <script>
+    (function(){var t=localStorage.getItem('ui_theme')||localStorage.getItem('admin_theme')||'light';document.documentElement.setAttribute('data-bs-theme',t);if(t==='dark')document.documentElement.classList.add('theme-dark');})();
+  </script>
+</head>
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+
+{% if ui_navbar %}{% include 'partials/navbar.html' %}{% include 'partials/breadcrumbs.html' %}{% endif %}
+
+{% if ui_sidebar %}
+<div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="appSidebarOffcanvas">
+  <div class="offcanvas-header border-bottom"><h6 class="offcanvas-title">Menu</h6>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button></div>
+  <div class="offcanvas-body p-0">{% include 'partials/sidebar_admin.html' %}</div>
+</div>
+{% endif %}
+
+<div class="app-shell d-flex">
+  {% if ui_sidebar %}
+  <aside class="sidebar d-none d-lg-block">{% include 'partials/sidebar_admin.html' %}</aside>
+  {% endif %}
+  <main class="main">
+    <div class="container-fluid px-3 py-3">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} alert-dismissible fade show small py-2">{{ msg }}
+          <button class="btn-close" data-bs-dismiss="alert"></button></div>
+      {% endfor %}{% endif %}
+    {% endwith %}
+
+    {# ── Header ── #}
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+      <div>
+        <h4 class="fw-bold mb-0"><i class="fa-solid fa-users me-2 text-accent"></i>All Users</h4>
+        <div class="text-muted small mt-1">
+          {{ total_users }} users · {{ total_sub_admin }} sub admins · {{ total_routers }} routers
+        </div>
+      </div>
+      <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+        <i class="fa-solid fa-arrow-left me-1"></i>Back
+      </a>
+    </div>
+
+    {# ── Filters + Search ── #}
+    <div class="card p-3 mb-4">
+      <div class="d-flex flex-wrap gap-3 align-items-center">
+        <div class="input-group input-group-sm" style="max-width:320px;">
+          <span class="input-group-text bg-transparent border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
+          <input id="usersSearch" type="text" class="form-control border-start-0" placeholder="Search username, router, IP...">
+        </div>
+        <div class="d-flex gap-2 flex-wrap" id="roleFilters">
+          <button class="filter-btn btn btn-outline-secondary active" data-role="all">All <span class="ms-1 badge bg-secondary-subtle text-secondary border">{{ users|length }}</span></button>
+          <button class="filter-btn btn btn-outline-warning" data-role="sub-admin">Sub Admin <span class="ms-1 badge bg-warning-subtle text-warning border">{{ total_sub_admin }}</span></button>
+          <button class="filter-btn btn btn-outline-primary" data-role="user">Users <span class="ms-1 badge bg-primary-subtle text-primary border">{{ total_users }}</span></button>
+        </div>
+        <select id="statusFilter" class="form-select form-select-sm" style="max-width:160px;">
+          <option value="all">Any status</option>
+          <option value="online">Has online router</option>
+          <option value="offline">All offline</option>
+        </select>
+        <select id="pageSize" class="form-select form-select-sm" style="max-width:110px;">
+          <option value="20">20/page</option>
+          <option value="50">50/page</option>
+          <option value="100">100/page</option>
+          <option value="9999">All</option>
+        </select>
+      </div>
+    </div>
+
+    {# ── User Grid ── #}
+    <div id="usersGrid" class="row g-3">
+      {% for u in users %}
+      {% set has_online = u.routers|selectattr('status','equalto','Online')|list|length > 0 %}
+      <div class="col-12 col-md-6 col-xl-4 user-item"
+           data-role="{{ u.role }}"
+           data-online="{{ 'online' if has_online else 'offline' }}"
+           data-search="{{ u.username }} {% for r in u.routers %}{{ r.name }} {{ r.ip }}{% endfor %}">
+        <div class="user-card p-3">
+
+          {# Top row: avatar + name + role badge #}
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div style="width:42px;height:42px;border-radius:12px;flex-shrink:0;
+              background:{% if u.role=='sub-admin' %}rgba(245,158,11,.12){% else %}rgba(37,99,235,.1){% endif %};
+              display:flex;align-items:center;justify-content:center;">
+              <i class="fa-solid {% if u.role=='sub-admin' %}fa-user-shield{% else %}fa-user{% endif %}"
+                 style="color:{% if u.role=='sub-admin' %}#f59e0b{% else %}var(--accent){% endif %};"></i>
+            </div>
+            <div class="flex-grow-1 min-w-0">
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <a href="{{ url_for('admin.login_as_user', user_id=u._id) }}"
+                   class="fw-bold text-decoration-none" style="color:var(--text);">{{ u.username }}</a>
+                {% if u.role == 'sub-admin' %}
+                  <span class="badge bg-warning text-dark" style="font-size:.6rem;">Sub Admin</span>
+                {% else %}
+                  <span class="badge bg-secondary" style="font-size:.6rem;">User</span>
+                {% endif %}
+              </div>
+              {% if u.email %}<div class="text-muted" style="font-size:.7rem;">{{ u.email }}</div>{% endif %}
+              <div class="text-muted" style="font-size:.67rem;">
+                <i class="fa-solid fa-clock me-1" style="font-size:.55rem;"></i>
+                {{ u.created_at[:10] if u.created_at else '—' }}
+              </div>
+            </div>
+          </div>
+
+          {# Permission chips #}
+          <div class="mb-3 d-flex flex-wrap gap-1">
+            {% if u.can_generate %}
+            <span class="perm-chip" style="background:rgba(37,99,235,.1);color:var(--accent);">Voucher</span>
+            {% endif %}
+            {% if u.allow_reports %}
+            <span class="perm-chip" style="background:rgba(34,197,94,.1);color:#16a34a;">Reports</span>
+            {% endif %}
+            {% if u.allow_user_manage %}
+            <span class="perm-chip" style="background:rgba(6,182,212,.1);color:#0891b2;">Users</span>
+            {% endif %}
+            {% if u.allow_profiles %}
+            <span class="perm-chip" style="background:rgba(139,92,246,.1);color:#7c3aed;">Profiles</span>
+            {% endif %}
+            {% if not u.can_generate and not u.allow_reports and not u.allow_user_manage and not u.allow_profiles %}
+            <span class="text-muted" style="font-size:.68rem;">No permissions</span>
+            {% endif %}
+          </div>
+
+          {# Routers #}
+          {% if u.routers %}
+          <div class="mb-3 d-flex flex-wrap gap-1">
+            {% for r in u.routers %}
+            <span class="router-chip offline" data-router-id="{{ r.id }}" data-owner-id="{{ u._id }}">
+              <i class="fa-solid fa-spinner fa-spin" style="font-size:.45rem;"></i>
+              {{ r.name }}
+            </span>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="text-muted mb-3" style="font-size:.7rem;"><i class="fa-solid fa-plug-circle-xmark me-1"></i>No routers</div>
+          {% endif %}
+
+          {# Actions #}
+          <div class="d-flex gap-2 flex-wrap" style="border-top:1px solid var(--border,#e2e8f0);padding-top:10px;margin-top:2px;">
+            <button class="btn btn-xs btn-warning fw-bold" data-bs-toggle="modal" data-bs-target="#permModal{{ u._id }}">
+              <i class="fa-solid fa-lock me-1"></i>Perms
+            </button>
+            <a href="{{ url_for('admin.ui_settings', user_id=u._id) }}" class="btn btn-xs btn-outline-primary">
+              <i class="fa-solid fa-desktop me-1"></i>UI
+            </a>
+            <button class="btn btn-xs btn-info text-white" data-bs-toggle="modal" data-bs-target="#addR{{ u._id }}">
+              <i class="fa-solid fa-plus me-1"></i>Router
+            </button>
+            <a href="{{ url_for('admin.delete_user', id=u._id) }}" class="btn btn-xs btn-outline-danger ms-auto" onclick="return confirm('Delete {{ u.username }}?')">
+              <i class="fa-solid fa-trash"></i>
+            </a>
+          </div>
+        </div>
+
+        {# ── Permission Modal ── #}
+        <div class="modal fade" id="permModal{{ u._id }}" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-scrollable">
+            <form action="{{ url_for('admin.update_user_permission', user_id=u._id) }}" method="POST" class="modal-content">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="modal-header py-2">
+                <h6 class="modal-title fw-bold"><i class="fa-solid fa-shield-halved me-2 text-accent"></i>{{ u.username }} — Permissions</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                {# Role selector (admin only sees this) #}
+                <select name="u_role" class="form-select form-select-sm mb-3">
+                  <option value="user" {% if u.role=='user' %}selected{% endif %}>General User</option>
+                  <option value="sub-admin" {% if u.role=='sub-admin' %}selected{% endif %}>Sub Admin</option>
+                </select>
+
+                {# ── Core Permissions ── #}
+                <div class="mb-2 fw-bold small text-muted"><i class="fa-solid fa-key me-1"></i>Core</div>
+                <div style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:10px;padding:12px;" class="mb-3">
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="can_generate" id="gc{{ u._id }}" {% if u.can_generate %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="gc{{ u._id }}"><i class="fa-solid fa-ticket me-1 text-primary"></i>Voucher Generation</label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="allow_reports" id="rc{{ u._id }}" {% if u.allow_reports %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="rc{{ u._id }}"><i class="fa-solid fa-chart-bar me-1 text-info"></i>Reports</label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="allow_monitor" id="mc{{ u._id }}" {% if u.allow_monitor %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="mc{{ u._id }}"><i class="fa-solid fa-desktop me-1 text-warning"></i>Monitor</label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="allow_user_manage" id="uc{{ u._id }}" {% if u.allow_user_manage %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="uc{{ u._id }}"><i class="fa-solid fa-users me-1 text-success"></i>User Management</label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="allow_profiles" id="pc{{ u._id }}" {% if u.allow_profiles %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="pc{{ u._id }}"><i class="fa-solid fa-id-badge me-1 text-secondary"></i>View Profiles</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="allow_profile_edit" id="pe{{ u._id }}" {% if u.allow_profile_edit %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="pe{{ u._id }}"><i class="fa-solid fa-pen me-1 text-danger"></i>Edit Profiles</label>
+                  </div>
+                </div>
+
+                {# ── Additional Permissions ── #}
+                <div class="mb-2 fw-bold small text-muted"><i class="fa-solid fa-puzzle-piece me-1"></i>Features</div>
+                <div style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:10px;padding:12px;" class="mb-3">
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="allow_quick_user" id="qu{{ u._id }}" {% if u.allow_quick_user %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="qu{{ u._id }}"><i class="fa-solid fa-bolt me-1 text-warning"></i>Quick User</label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="allow_mac_reset" id="mr{{ u._id }}" {% if u.allow_mac_reset %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="mr{{ u._id }}"><i class="fa-solid fa-rotate me-1 text-info"></i>MAC Reset</label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="allow_live_template" id="lt{{ u._id }}" {% if u.allow_live_template %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="lt{{ u._id }}"><i class="fa-solid fa-palette me-1 text-primary"></i>Live Template</label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="allow_export_pdf" id="ep{{ u._id }}" {% if u.allow_export_pdf %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="ep{{ u._id }}"><i class="fa-solid fa-file-pdf me-1 text-danger"></i>Export PDF</label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="allow_port_lock" id="pl{{ u._id }}" {% if u.allow_port_lock %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="pl{{ u._id }}"><i class="fa-solid fa-lock me-1 text-danger"></i>Port Lock</label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="allow_router_manage" id="rm{{ u._id }}" {% if u.allow_router_manage %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="rm{{ u._id }}"><i class="fa-solid fa-server me-1 text-secondary"></i>Router Management</label>
+                  </div>
+                </div>
+
+                {# ── Danger Zone ── #}
+                <div class="mb-2 fw-bold small text-muted"><i class="fa-solid fa-triangle-exclamation me-1"></i>Danger Zone</div>
+                <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px;">
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="allow_create_user" id="cu{{ u._id }}" {% if u.allow_create_user %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="cu{{ u._id }}"><i class="fa-solid fa-user-plus me-1 text-success"></i>Create Users</label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="allow_delete_user" id="du{{ u._id }}" {% if u.allow_delete_user %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="du{{ u._id }}"><i class="fa-solid fa-user-minus me-1 text-danger"></i>Delete Users</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="allow_batch_delete" id="bd{{ u._id }}" {% if u.allow_batch_delete %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="bd{{ u._id }}"><i class="fa-solid fa-trash me-1 text-danger"></i>Batch Delete</label>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer py-2 d-flex justify-content-between">
+                <div>
+                  <button type="submit" name="grant_all" value="1" class="btn btn-outline-success btn-sm"><i class="fa-solid fa-check-double me-1"></i>Grant All</button>
+                </div>
+                <div class="d-flex gap-2">
+                  <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                  <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-save me-1"></i>Save</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {# ── Add Router Modal ── #}
+        <div class="modal fade" id="addR{{ u._id }}" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-sm">
+            <form action="{{ url_for('admin.add_router_to_user') }}" method="POST" class="modal-content">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="modal-header py-2">
+                <h6 class="modal-title fw-bold">Add Router — {{ u.username }}</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <input type="hidden" name="u_id" value="{{ u._id }}">
+                <div class="mb-2">
+                  <label class="small text-muted mb-1 fw-semibold" style="font-size:.72rem;">Copy from Existing Router</label>
+                  <select class="form-select form-select-sm" onchange="onExistingRouterSelectAU(this, '{{ u._id }}')">
+                    <option value="">— Enter manually —</option>
+                    {% for eu in users if eu.routers %}{% for er in eu.routers %}
+                    <option value="{{ er.id }}" data-name="{{ er.name }}" data-ip="{{ er.ip }}" data-user="{{ er.get('api_user','') }}" data-dns="{{ er.get('dns_name','login.net') }}">{{ eu.username }} → {{ er.name }} ({{ er.ip }})</option>
+                    {% endfor %}{% endfor %}
+                  </select>
+                </div>
+                <div id="manualFieldsAU{{ u._id }}">
+                  <input type="text" name="r_name" class="form-control form-control-sm mb-2" placeholder="Router Name" required>
+                  <input type="text" name="r_ip"   class="form-control form-control-sm mb-2" placeholder="IP:Port" required>
+                  <input type="text" name="r_user" class="form-control form-control-sm mb-2" placeholder="API User" required>
+                  <input type="password" name="r_pass" class="form-control form-control-sm mb-2" placeholder="API Pass">
+                </div>
+              </div>
+              <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      </div>
+      {% else %}
+      <div class="col-12">
+        <div class="card empty-state">
+          <div class="ei">👥</div>
+          <div class="fw-bold mb-1">No users found</div>
+          <div class="text-muted small">Add users from the Admin Dashboard.</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Pagination #}
+    <div id="usersPager" class="mt-3 d-flex justify-content-center gap-2 flex-wrap"></div>
+
+    </div>
+  </main>
+</div>
+
+{% if request.endpoint != 'login' %}{% include 'partials/footer_ads.html' %}{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+document.addEventListener("scroll", () => {
+  const nav = document.querySelector(".navbar");
+  if (nav) nav.classList.toggle("scrolled", window.scrollY > 10);
+});
+
+// ── Filter & Search & Pagination ────────────────────────────────────────
+let currentRole = 'all', currentStatus = 'all', currentPage = 1, pageSize = 20;
+
+const items = () => Array.from(document.querySelectorAll('.user-item'));
+
+function applyFilters() {
+  const q = (document.getElementById('usersSearch').value || '').toLowerCase();
+  items().forEach(el => {
+    const role   = el.dataset.role;
+    const online = el.dataset.online;
+    const search = (el.dataset.search || '').toLowerCase();
+    const roleOk   = currentRole === 'all' || role === currentRole;
+    const statusOk = currentStatus === 'all' || online === currentStatus;
+    const searchOk = !q || search.includes(q);
+    el.dataset.visible = (roleOk && statusOk && searchOk) ? '1' : '0';
+  });
+  currentPage = 1;
+  renderPage();
+}
+
+function renderPage() {
+  const visible = items().filter(el => el.dataset.visible === '1');
+  const totalPages = Math.ceil(visible.length / pageSize) || 1;
+  currentPage = Math.min(currentPage, totalPages);
+  const start = (currentPage - 1) * pageSize;
+  items().forEach(el => el.style.display = 'none');
+  visible.slice(start, start + pageSize).forEach(el => el.style.display = '');
+  renderPager(totalPages, visible.length);
+}
+
+function renderPager(totalPages, totalVisible) {
+  const pager = document.getElementById('usersPager');
+  if (!pager) return;
+  if (totalPages <= 1) { pager.innerHTML = ''; return; }
+  let html = '';
+  for (let p = 1; p <= totalPages; p++) {
+    html += `<button class="btn btn-sm ${p === currentPage ? 'btn-primary' : 'btn-outline-secondary'} rounded-pill"
+      onclick="currentPage=${p};renderPage()">${p}</button>`;
+  }
+  html += `<span class="text-muted small align-self-center ms-2">${totalVisible} users</span>`;
+  pager.innerHTML = html;
+}
+
+// Role filter buttons
+document.querySelectorAll('.filter-btn[data-role]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn[data-role]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentRole = btn.dataset.role;
+    applyFilters();
+  });
+});
+
+document.getElementById('usersSearch').addEventListener('input', applyFilters);
+document.getElementById('statusFilter').addEventListener('change', e => { currentStatus = e.target.value; applyFilters(); });
+document.getElementById('pageSize').addEventListener('change', e => { pageSize = parseInt(e.target.value); applyFilters(); });
+
+// Init
+items().forEach(el => el.dataset.visible = '1');
+renderPage();
+
+// ── Background Router Status Check ─────────────────────────────────────
+(function() {
+  function updateRouterChips(routers) {
+    routers.forEach(function(r) {
+      var chips = document.querySelectorAll('.router-chip[data-router-id="' + r.id + '"]');
+      chips.forEach(function(chip) {
+        chip.classList.remove('online', 'offline', 'checking');
+        chip.classList.add(r.status === 'Online' ? 'online' : 'offline');
+        // Replace spinner with dot
+        var html = '<span style="width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;"></span> ' + chip.textContent.trim();
+        chip.innerHTML = html;
+      });
+    });
+    // Update user-item data-online attribute for filtering
+    document.querySelectorAll('.user-item').forEach(function(el) {
+      var chips = el.querySelectorAll('.router-chip');
+      var hasOnline = Array.from(chips).some(function(c) { return c.classList.contains('online'); });
+      el.dataset.online = hasOnline ? 'online' : 'offline';
+    });
+  }
+
+  function trySSE() {
+    var es;
+    try { es = new EventSource('{{ url_for("dashboard.api_router_status") }}'); } catch(e) { tryJSON(); return; }
+    var accumulated = [];
+    var timeout = setTimeout(function() {
+      if (accumulated.length) updateRouterChips(accumulated);
+      try { es.close(); } catch(e) {}
+    }, 30000);
+
+    es.onmessage = function(e) {
+      try {
+        var msg = JSON.parse(e.data);
+        if (msg.router) { accumulated.push(msg.router); updateRouterChips([msg.router]); }
+        if (msg.done) { clearTimeout(timeout); updateRouterChips(msg.routers || accumulated); es.close(); }
+      } catch(err) {}
+    };
+    es.onerror = function() {
+      clearTimeout(timeout);
+      es.close();
+      if (accumulated.length) { updateRouterChips(accumulated); }
+      else { tryJSON(); }
+    };
+  }
+
+  function tryJSON() {
+    fetch('{{ url_for("dashboard.api_router_status_json") }}')
+      .then(function(r) { return r.json(); })
+      .then(function(data) { if (data.ok && data.routers) updateRouterChips(data.routers); })
+      .catch(function() {
+        // Mark all as offline
+        document.querySelectorAll('.router-chip.checking').forEach(function(c) {
+          c.classList.remove('checking');
+          c.classList.add('offline');
+          c.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;"></span> ' + c.textContent.trim();
+        });
+      });
+  }
+
+  window.addEventListener('load', trySSE);
+})();
+
+/* Fix: Move modals to <body> so they aren't clipped by overflow parents */
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.modal').forEach(function(modal) {
+    document.body.appendChild(modal);
+  });
+});
+
+// Fill manual fields when an existing router is selected from dropdown
+function onExistingRouterSelectAU(sel, uid) {
+  const opt = sel.options[sel.selectedIndex];
+  const fields = document.getElementById('manualFieldsAU' + uid);
+  if (!fields) return;
+  if (!sel.value) {
+    fields.querySelectorAll('input[name="r_name"]')[0].value = '';
+    fields.querySelectorAll('input[name="r_ip"]')[0].value = '';
+    fields.querySelectorAll('input[name="r_user"]')[0].value = '';
+    fields.querySelectorAll('input[name="r_pass"]')[0].value = '';
+    return;
+  }
+  fields.querySelectorAll('input[name="r_name"]')[0].value = opt.getAttribute('data-name') || '';
+  fields.querySelectorAll('input[name="r_ip"]')[0].value = opt.getAttribute('data-ip') || '';
+  fields.querySelectorAll('input[name="r_user"]')[0].value = opt.getAttribute('data-user') || '';
+  fields.querySelectorAll('input[name="r_pass"]')[0].value = '';
+}
+</script>
+</body>
+</html>

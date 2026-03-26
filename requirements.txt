@@ -1,0 +1,16 @@
+Flask
+Flask-Login
+Flask-PyMongo
+Flask-Mail
+Flask-WTF
+pymongo[srv]
+routeros-api
+xhtml2pdf
+cryptography
+dnspython
+python-dotenv
+reportlab
+gunicorn
+Flask-Limiter
+pyotp>=2.9.0
+qrcode[pil]>=7.4.0

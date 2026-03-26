@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - MikroMan</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='img/favicon-64.png') }}">
+    <link rel="apple-touch-icon" sizes="256x256" href="{{ url_for('static', filename='img/logo-square-256.png') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_layout.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">
+
+</head>
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+
+<form class="d-flex gap-2" data-report-form>
+    
+    <span class="btn-spinner" aria-hidden="true"></span>
+  </button>
+</form>
+{% if ui_navbar %}
+  {% include 'partials/navbar.html' %}
+
+{% endif %}
+
+{# Mobile offcanvas sidebar #}
+{% if ui_sidebar %}
+<div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="appSidebarOffcanvas" aria-labelledby="appSidebarOffcanvasLabel">
+  <div class="offcanvas-header border-bottom">
+    <h6 class="offcanvas-title" id="appSidebarOffcanvasLabel">Menu</h6>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body p-0">
+    {% include 'partials/sidebar_auto.html' %}
+  </div>
+</div>
+{% endif %}
+<div class="app-shell d-flex">
+  {% if ui_sidebar %}
+  <aside class="sidebar d-none d-lg-block">
+    {% include 'partials/sidebar_auto.html' %}
+  </aside>
+  {% endif %}
+  <main class="main">
+
+    {# breadcrumbs already rendered under navbar #}
+<div id="pageLoader" class="page-loader" hidden>
+  <div class="loader" aria-label="Loading"></div>
+</div>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <h4 class="fw-bold mb-0">{{ selected_router.name }} Analytics</h4>
+        <form class="d-flex gap-2">
+            <input type="hidden" name="router_id" value="{{ selected_router.id }}">
+            <input type="month" name="month" value="{{ selected_month }}" class="form-control form-control-sm border-0 shadow-sm">
+            <button class="btn btn-primary btn-sm px-3 fw-bold">Filter</button>
+        </form>
+    </div>
+
+<div class="stat-banner mb-4 shadow-lg d-flex justify-content-between align-items-center">
+    <div>
+        <span class="text-uppercase small fw-bold opacity-75">Total Revenue ({{ selected_month }})</span>
+        <h1 class="display-4 fw-bold mb-0">{{ total_rev }} {{ currency }}</h1>
+    </div>
+    <div class="text-end">
+        <span class="text-uppercase small fw-bold opacity-75">Total Vouchers Sold</span>
+        <h1 class="display-4 fw-bold mb-0">{{ report_data|length }}</h1>
+    </div>
+</div>
+    <div class="table-container overflow-hidden">
+        <div class="p-3 bg-white border-bottom d-flex justify-content-between align-items-center no-print">
+            <h6 class="fw-bold mb-0">Detailed Activation Logs</h6>
+            <button class="btn btn-danger btn-sm px-4 fw-bold" onclick="window.print()"><i class="fa-solid fa-file-pdf me-2"></i>PDF</button>
+            <button class="btn btn-success btn-sm px-4 fw-bold" onclick="exportReportCSV()"><i class="fa-solid fa-file-csv me-2"></i>CSV</button>
+            <button class="btn btn-primary btn-sm px-4 fw-bold" onclick="exportReportExcel()"><i class="fa-solid fa-file-excel me-2"></i>Excel</button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light text-uppercase small">
+                    <tr>
+                        <th class="ps-4">Date & Time</th>
+                        <th>Username (Voucher)</th> <th>Profile</th> <th class="text-end pe-4">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in report_data %}
+                    <tr>
+                        <td class="ps-4">{{ item.date }} <small class="text-muted d-block">{{ item.time }}</small></td>
+                        <td class="fw-bold text-dark">{{ item.username }}</td> <td><span class="badge bg-info-subtle text-info border border-info-subtle px-2">{{ item.profile }}</span></td> <td class="text-end pe-4 fw-bold text-accent">{{ item.price }} {{ currency }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-dark">
+                    <tr>
+                        <td colspan="3" class="text-end fw-bold py-3">GRAND TOTAL:</td>
+                        <td class="text-end pe-4 fw-bold py-3 text-warning fs-5">{{ total_rev }} {{ currency }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Sticky grand total (screen only) -->
+        <div class="grand-total-bar no-print" aria-label="Grand total">
+            <div class="grand-total-label">GRAND TOTAL:</div>
+            <div class="grand-total-value">{{ total_rev }} {{ currency }}</div>
+        </div>
+    </div>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+</div>
+	
+  </main>
+</div>
+{% if request.endpoint != 'login' %}
+  {% include 'partials/footer_ads.html' %}
+{% endif %}
+
+<script>
+document.addEventListener("scroll", function () {
+  const nav = document.querySelector(".navbar");
+  if (!nav) return;
+  if (window.scrollY > 10) nav.classList.add("scrolled");
+  else nav.classList.remove("scrolled");
+});
+
+function exportReportCSV() {
+  const table = document.querySelector('table');
+  if (!table) { alert('No data to export'); return; }
+  let csv = '';
+  table.querySelectorAll('tr').forEach(row => {
+    const cols = Array.from(row.querySelectorAll('th, td')).map(c => '"' + c.textContent.trim().replace(/"/g, '""') + '"');
+    csv += cols.join(',') + '\n';
+  });
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Report_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  if (window.showToast) showToast('success', 'Exported', 'CSV file downloaded');
+}
+
+function exportReportExcel() {
+  const table = document.querySelector('table');
+  if (!table) { alert('No data to export'); return; }
+  const html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>' + table.outerHTML + '</body></html>';
+  const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Report_' + new Date().toISOString().slice(0,10) + '.xls';
+  a.click();
+  if (window.showToast) showToast('success', 'Exported', 'Excel file downloaded');
+}
+</script>
+
+</body>
+</html>

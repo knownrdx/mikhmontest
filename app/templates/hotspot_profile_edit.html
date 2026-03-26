@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit Profile: {{ prefill.name }} - {{ router.name }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+  <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='img/favicon-64.png') }}">
+  <link rel="apple-touch-icon" sizes="256x256" href="{{ url_for('static', filename='img/logo-square-256.png') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_layout.css') }}">
+  <style>
+    .pf-header {
+      background: linear-gradient(135deg, #d97706, #f59e0b);
+      border-radius: 20px;
+      padding: 24px 28px;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .pf-header::before {
+      content: '';
+      position: absolute;
+      top: -30px; right: -20px;
+      width: 140px; height: 140px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.07);
+    }
+    .pf-header h4 { position: relative; z-index: 1; }
+    .pf-header .sub { position: relative; z-index: 1; opacity: .9; font-size: .85rem; }
+    .pf-header .profile-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,.2);
+      backdrop-filter: blur(8px);
+      padding: 5px 14px;
+      border-radius: 10px;
+      font-size: .82rem;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+
+    .section-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--border);
+    }
+    .section-label .icon-box {
+      width: 34px; height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .85rem;
+    }
+    .section-label h6 { margin: 0; font-weight: 700; font-size: .9rem; }
+
+    .form-card-inner {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      transition: box-shadow .2s;
+    }
+    .form-card-inner:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,.06);
+    }
+
+    .hint {
+      font-size: .75rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .info-card {
+      background: rgba(245,158,11,.08);
+      border: 1px solid rgba(245,158,11,.2);
+      border-radius: 14px;
+      padding: 20px;
+    }
+    .info-card h6 { font-weight: 700; font-size: .88rem; color: #d97706; }
+    [data-bs-theme="dark"] .info-card h6 { color: #fbbf24; }
+    .info-card p { font-size: .8rem; color: var(--muted); margin-bottom: 8px; }
+    .info-card ul { font-size: .78rem; color: var(--muted); padding-left: 18px; margin: 0; }
+    .info-card ul li { margin-bottom: 4px; }
+
+    .current-val {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--muted);
+      background: var(--accent-10);
+      padding: 2px 8px;
+      border-radius: 6px;
+      margin-left: 8px;
+    }
+
+    .save-bar {
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 14px 0;
+      margin: 0 -12px;
+      backdrop-filter: blur(12px);
+    }
+
+    @media (max-width: 768px) {
+      .pf-header { padding: 18px; border-radius: 14px; }
+      .form-card-inner { padding: 18px; }
+    }
+  </style>
+</head>
+
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+
+  {% if ui_navbar %}
+  {% include 'partials/navbar.html' %}
+  {% include "partials/breadcrumbs.html" %}
+  {% endif %}
+
+  {% if ui_sidebar %}
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="appSidebarOffcanvas" aria-labelledby="appSidebarOffcanvasLabel">
+    <div class="offcanvas-header border-bottom">
+      <h6 class="offcanvas-title" id="appSidebarOffcanvasLabel">Menu</h6>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+      {% include 'partials/sidebar_auto.html' %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="app-shell d-flex">
+    {% if ui_sidebar %}
+    <aside class="sidebar d-none d-lg-block">
+      {% include 'partials/sidebar_auto.html' %}
+    </aside>
+    {% endif %}
+    <main class="main">
+
+      <div class="container py-4" style="max-width: 960px;">
+
+        {# ── Header ── #}
+        <div class="pf-header mb-4">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+            <div>
+              <h4 class="mb-1 fw-bold">
+                <i class="fa-solid fa-pen-to-square me-2"></i>Edit Profile
+              </h4>
+              <div class="sub"><i class="fa-solid fa-router me-1"></i> {{ router.name }}</div>
+              <div class="profile-badge">
+                <i class="fa-solid fa-layer-group"></i>
+                {{ prefill.name }}
+              </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap" style="position:relative;z-index:1">
+              <a class="btn btn-sm btn-light fw-bold" href="{{ url_for('admin.hotspot_profiles') }}">
+                <i class="fa-solid fa-arrow-left me-1"></i> Profiles
+              </a>
+              <a class="btn btn-sm btn-outline-light fw-bold" href="{{ url_for('admin.hotspot_profile_add') }}">
+                <i class="fa-solid fa-plus me-1"></i> Add New
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show small mb-3">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="post" autocomplete="off" id="profileForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="row g-4">
+            {# ── Left: Form ── #}
+            <div class="col-lg-8">
+
+              {# Basic Info #}
+              <div class="form-card-inner">
+                <div class="section-label">
+                  <div class="icon-box bg-primary bg-opacity-10 text-primary"><i class="fa-solid fa-tag"></i></div>
+                  <h6>Basic Information</h6>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Profile Name <span class="text-danger">*</span></label>
+                  <input class="form-control" type="text" name="name" required autofocus
+                         value="{{ prefill.name }}" placeholder="Profile name (no spaces)" onchange="remSpace();">
+                </div>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Address Pool</label>
+                    <select class="form-select" name="ppool">
+                      {% for p in pools %}
+                        <option value="{{ p }}" {% if p == prefill.ppool %}selected{% endif %}>{{ p }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Parent Queue</label>
+                    <select class="form-select" name="parent">
+                      {% for q in parents %}
+                        <option value="{{ q }}" {% if q == prefill.parent %}selected{% endif %}>{{ q }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {# Speed & Sharing #}
+              <div class="form-card-inner">
+                <div class="section-label">
+                  <div class="icon-box bg-info bg-opacity-10 text-info"><i class="fa-solid fa-gauge-high"></i></div>
+                  <h6>Speed & Sharing</h6>
+                </div>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">
+                      Rate Limit <span class="text-muted">(up/down)</span>
+                      {% if prefill.ratelimit %}
+                        <span class="current-val">Current: {{ prefill.ratelimit }}</span>
+                      {% endif %}
+                    </label>
+                    <input class="form-control" type="text" name="ratelimit"
+                           value="{{ prefill.ratelimit }}" placeholder="e.g. 512k/1M or 10M/10M">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Shared Users</label>
+                    <input class="form-control" type="number" min="1" name="sharedusers"
+                           value="{{ prefill.sharedusers }}" required>
+                  </div>
+                </div>
+                <div class="mt-3">
+                  <label class="form-label">Lock User (MAC Bind)</label>
+                  <select class="form-select" name="lockunlock" id="lockSelect" onchange="onLockChange();">
+                    <option value="Enable" {% if prefill.lockunlock == 'Enable' %}selected{% endif %}>Enable — Bind MAC on first login</option>
+                    <option value="Disable" {% if prefill.lockunlock == 'Disable' %}selected{% endif %}>Disable — Allow any device</option>
+                  </select>
+                  <div class="hint">When enabled, shared-users is automatically set to 1 and MAC is bound on first login.</div>
+                </div>
+              </div>
+
+              {# Validity & Expiry #}
+              <div class="form-card-inner">
+                <div class="section-label">
+                  <div class="icon-box bg-warning bg-opacity-10 text-warning"><i class="fa-solid fa-clock"></i></div>
+                  <h6>Validity & Expiry</h6>
+                </div>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Expired Mode</label>
+                    <select class="form-select" id="expmode" name="expmode" required onchange="toggleValidity();">
+                      <option value="remc" {% if prefill.expmode == 'remc' %}selected{% endif %}>Remove & Record</option>
+                      <option value="none" {% if prefill.expmode in ('0', 'none', '') %}selected{% endif %}>None (Permanent)</option>
+                      <option value="rem" {% if prefill.expmode == 'rem' %}selected{% endif %}>Remove</option>
+                      <option value="notice" {% if prefill.expmode == 'notice' %}selected{% endif %}>Notice</option>
+                      <option value="notic" {% if prefill.expmode == 'notic' %}selected{% endif %}>Notice & Record</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6" id="validityRow">
+                    <label class="form-label">
+                      Validity <span class="text-danger">*</span>
+                      <span class="current-val">Current: {{ prefill.validity }}</span>
+                    </label>
+                    <input class="form-control" type="text" id="validi" name="validity"
+                           value="{{ prefill.validity }}" required>
+                    <div class="hint">Format: 30d, 12h, 30m, 5h30m, 1d12h</div>
+                  </div>
+                </div>
+              </div>
+
+              {# Pricing #}
+              <div class="form-card-inner" id="pricingSection">
+                <div class="section-label">
+                  <div class="icon-box bg-success bg-opacity-10 text-success"><i class="fa-solid fa-money-bill"></i></div>
+                  <h6>Pricing</h6>
+                </div>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Buy Price</label>
+                    <div class="input-group">
+                      <span class="input-group-text" style="border-radius:10px 0 0 10px">{{ router.currency or "AED" }}</span>
+                      <input class="form-control" type="number" min="0" step="0.01" name="price"
+                             value="{{ prefill.price }}" placeholder="0.00">
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Selling Price</label>
+                    <div class="input-group">
+                      <span class="input-group-text" style="border-radius:10px 0 0 10px">{{ router.currency or "AED" }}</span>
+                      <input class="form-control" type="number" min="0" step="0.01" name="sprice"
+                             value="{{ prefill.sprice }}" placeholder="0.00">
+                    </div>
+                  </div>
+                </div>
+                <div class="hint mt-2">Pricing is stored in the on-login :put metadata for reporting.</div>
+              </div>
+
+              {# Save Bar #}
+              <div class="save-bar">
+                <div class="d-flex gap-2 justify-content-end px-3">
+                  <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin.hotspot_profiles') }}">
+                    <i class="fa-solid fa-xmark me-1"></i> Cancel
+                  </a>
+                  <button type="submit" name="save" class="btn btn-warning btn-sm fw-bold px-4 text-white">
+                    <i class="fa-solid fa-save me-1"></i> Save Changes
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+            {# ── Right: Info Panel ── #}
+            <div class="col-lg-4">
+              <div class="info-card mb-3">
+                <h6><i class="fa-solid fa-circle-info me-2"></i>What Gets Updated</h6>
+                <p>Saving will update on the MikroTik router:</p>
+                <ul>
+                  <li>Profile settings (pool, queue, rate, shared)</li>
+                  <li><b>on-login</b> script with new :put metadata & validity</li>
+                  <li>Per-profile <b>expiry scheduler</b></li>
+                  <li>Global expiry scheduler (backward compat)</li>
+                </ul>
+              </div>
+
+              <div class="info-card">
+                <h6><i class="fa-solid fa-triangle-exclamation me-2"></i>Important Notes</h6>
+                <ul>
+                  <li>Changing validity only affects <b>new</b> users — existing users keep their original expiry</li>
+                  <li>Renaming a profile won't rename already-assigned users on RouterOS</li>
+                  <li>Rate limit changes apply immediately to all users of this profile</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </form>
+
+      </div>
+
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+      <script>
+        function remSpace() {
+          const el = document.querySelector('input[name="name"]');
+          if (!el) return;
+          el.value = el.value.replace(/\s+/g, '');
+        }
+
+        function toggleValidity() {
+          const exp = document.getElementById('expmode')?.value;
+          const row = document.getElementById('validityRow');
+          const vali = document.getElementById('validi');
+          const priceSection = document.getElementById('pricingSection');
+          if (!row || !vali) return;
+          if (exp === 'none') {
+            row.style.display = 'none';
+            vali.type = 'hidden';
+            vali.required = false;
+            vali.value = '';
+            if (priceSection) priceSection.style.display = 'none';
+          } else {
+            row.style.display = 'block';
+            vali.type = 'text';
+            vali.required = true;
+            if (priceSection) priceSection.style.display = '';
+          }
+        }
+
+        function onLockChange() {
+          const lock = document.getElementById('lockSelect')?.value;
+          const shared = document.querySelector('input[name="sharedusers"]');
+          if (lock === 'Enable' && shared) {
+            shared.value = 1;
+            shared.readOnly = true;
+          } else if (shared) {
+            shared.readOnly = false;
+          }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+          toggleValidity();
+          onLockChange();
+        });
+
+        document.addEventListener("scroll", function () {
+          const nav = document.querySelector(".navbar");
+          if (!nav) return;
+          if (window.scrollY > 10) nav.classList.add("scrolled");
+          else nav.classList.remove("scrolled");
+        });
+      </script>
+
+    </main>
+  </div>
+
+</body>
+</html>

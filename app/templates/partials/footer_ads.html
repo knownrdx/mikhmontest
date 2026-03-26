@@ -1,0 +1,226 @@
+<style>
+  /* ===== Base ===== */
+  iframe { border: 0 !important; }
+
+  :root{
+    --ad-z: 1030;
+    --ad-bg: #000;
+    --ad-close-bg: #ff3b3b;
+    --ad-close-fg: #fff;
+  }
+
+  /* ===== Desktop: Sidebar ===== */
+  .ad-desktop-sidebar{
+    position: fixed;
+    right: 12px;
+    top: 120px;
+    width: 160px;
+    height: 300px;
+    z-index: var(--ad-z);
+    display: none;
+  }
+
+  .ad-desktop-sidebar .ad-box{
+    width: 160px;
+    height: 300px;
+    overflow: hidden;
+    border-radius: 10px;
+    background: transparent;
+  }
+
+  /* ===== Mobile: Footer ===== */
+  .ad-mobile-footer{
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 50px;              /* less annoying */
+    background: var(--ad-bg);
+    z-index: var(--ad-z);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  .ad-mobile-footer .ad-box{
+    width: 160px;
+    height: 50px;
+    overflow: hidden;
+  }
+
+  /* ===== Close button ===== */
+  .ad-close{
+    position: absolute;
+    right: -6px;
+    top: -6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--ad-close-bg);
+    color: var(--ad-close-fg);
+    font-size: 14px;
+    line-height: 22px;
+    text-align: center;
+    cursor: pointer;
+    z-index: calc(var(--ad-z) + 10);
+    user-select: none;
+    border: none;
+    padding: 0;
+  }
+  .ad-close:focus{
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+
+  /* ===== Responsive visibility ===== */
+  @media (max-width: 768px){
+    .ad-mobile-footer{ display: flex; }
+    body{ padding-bottom: 60px; } /* keep content visible */
+  }
+  @media (min-width: 769px){
+    .ad-desktop-sidebar{ display: block; }
+  }
+</style>
+
+<!-- ===== DESKTOP SIDEBAR ===== -->
+<div class="ad-desktop-sidebar" id="deskAdWrap" aria-label="Advertisement">
+  <button class="ad-close" type="button"
+          aria-label="Close advertisement"
+          onclick="window.AdUnit && window.AdUnit.close('desk')">×</button>
+  <div class="ad-box" id="deskAdSlot"></div>
+</div>
+
+<!-- ===== MOBILE FOOTER ===== -->
+<div class="ad-mobile-footer" id="mobAdWrap" aria-label="Advertisement">
+  <button class="ad-close" type="button"
+          aria-label="Close advertisement"
+          onclick="window.AdUnit && window.AdUnit.close('mob')">×</button>
+  <div class="ad-box" id="mobAdSlot"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* =========================
+     Config
+  ========================== */
+  const CFG = {
+    key: "2baa89ffbe276da88e1f47caf72e1372",
+    invokeUrl: "https://www.highperformanceformat.com/2baa89ffbe276da88e1f47caf72e1372/invoke.js",
+    fmt: "iframe",
+    size: { w: 160, h: 300 },
+
+    // UX: show after content loads OR user scrolls
+    firstPaintDelayMs: 2500,
+    showAfterScrollPx: 250
+  };
+
+  /* =========================
+     Session flags (NO 7 days)
+  ========================== */
+  const SESSION_SHOWN_KEY  = "ad_session_shown";   // once shown, never again this session
+  const SESSION_CLOSED_KEY = "ad_session_closed";  // if user closes, never again this session
+
+  const isMobile = () => window.innerWidth <= 768;
+
+  function getActive(){
+    if(isMobile()){
+      return { wrapId: "mobAdWrap", slotId: "mobAdSlot" };
+    }
+    return { wrapId: "deskAdWrap", slotId: "deskAdSlot" };
+  }
+
+  function hideWrap(wrapId){
+    const el = document.getElementById(wrapId);
+    if(el) el.style.display = "none";
+  }
+
+  function shouldStop(){
+    return sessionStorage.getItem(SESSION_SHOWN_KEY) === "1"
+        || sessionStorage.getItem(SESSION_CLOSED_KEY) === "1";
+  }
+
+  function loadInto(slotId){
+    const slot = document.getElementById(slotId);
+    if(!slot) return;
+
+    slot.innerHTML = "";
+
+    // keep your atOptions (same key)
+    window.atOptions = {
+      key: CFG.key,
+      format: CFG.fmt,
+      height: CFG.size.h,
+      width: CFG.size.w,
+      params: {}
+    };
+
+    const s = document.createElement("script");
+    s.src = CFG.invokeUrl;
+    s.async = true;
+    slot.appendChild(s);
+  }
+
+  function loadActiveOnce(){
+    if(shouldStop()) return;
+
+    const a = getActive();
+    const wrap = document.getElementById(a.wrapId);
+
+    // if hidden (e.g. closed manually), stop
+    if(!wrap || wrap.style.display === "none") return;
+
+    // mark as shown: per-session only once
+    sessionStorage.setItem(SESSION_SHOWN_KEY, "1");
+
+    // load ad script
+    loadInto(a.slotId);
+  }
+
+  /* =========================
+     Public API for close buttons
+  ========================== */
+  window.AdUnit = {
+    close(which){
+      if(which === "desk") hideWrap("deskAdWrap");
+      else hideWrap("mobAdWrap");
+
+      // stop forever for this session
+      sessionStorage.setItem(SESSION_CLOSED_KEY, "1");
+      sessionStorage.setItem(SESSION_SHOWN_KEY, "1");
+    }
+  };
+
+  /* =========================
+     If already shown/closed in session: hide all + exit
+  ========================== */
+  if(shouldStop()){
+    hideWrap("deskAdWrap");
+    hideWrap("mobAdWrap");
+    return;
+  }
+
+  /* =========================
+     Show strategy (non-annoying)
+  ========================== */
+  let triggered = false;
+  function triggerOnce(){
+    if(triggered || shouldStop()) return;
+    triggered = true;
+    loadActiveOnce();
+  }
+
+  // show after a small delay (content first)
+  setTimeout(triggerOnce, CFG.firstPaintDelayMs);
+
+  // or show after user scrolls (engagement-based)
+  window.addEventListener("scroll", function(){
+    if(window.scrollY >= CFG.showAfterScrollPx){
+      triggerOnce();
+    }
+  }, { passive: true });
+
+})();
+</script>

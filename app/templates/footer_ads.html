@@ -1,0 +1,96 @@
+{# ================= FOOTER ADS (SAFE & STICKY) ================= #}
+
+<style>
+/* Sticky Ad Container */
+.sticky-ad-wrapper {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1040;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(4px);
+    padding: 6px 0;
+    display: flex;
+    justify-content: center;
+}
+
+/* Desktop only */
+.ad-desktop {
+    display: none;
+}
+
+/* Mobile only */
+.ad-mobile {
+    display: none;
+}
+
+/* Responsive rules */
+@media (min-width: 768px) {
+    .ad-desktop { display: block; }
+}
+
+@media (max-width: 767px) {
+    .ad-mobile { display: block; }
+}
+
+/* Prevent iframe overflow */
+.sticky-ad-wrapper iframe {
+    max-width: 100% !important;
+}
+</style>
+
+<div id="sticky-footer-ads" class="sticky-ad-wrapper" style="display:none;">
+
+    <!-- ================= MOBILE AD ================= -->
+    <div class="ad-mobile">
+        <div id="mobile-ad-container"></div>
+    </div>
+
+    <!-- ================= DESKTOP AD ================= -->
+    <div class="ad-desktop">
+        <div id="desktop-ad-container"></div>
+    </div>
+
+</div>
+
+<script>
+(function () {
+    // Prevent duplicate loading
+    if (window.__FOOTER_ADS_LOADED__) return;
+    window.__FOOTER_ADS_LOADED__ = true;
+
+    const wrapper = document.getElementById('sticky-footer-ads');
+    if (!wrapper) return;
+
+    wrapper.style.display = 'flex';
+
+    /* ================= MOBILE AD SCRIPT ================= */
+    const mobileScript = document.createElement('script');
+    mobileScript.async = true;
+    mobileScript.setAttribute('data-cfasync', 'false');
+    mobileScript.src = "https://pl28523081.effectivegatecpm.com/8f6a36ab01795962d18fcf74a09fc116/invoke.js";
+    document.getElementById('mobile-ad-container')?.appendChild(mobileScript);
+
+    const mobileDiv = document.createElement('div');
+    mobileDiv.id = "container-8f6a36ab01795962d18fcf74a09fc116";
+    document.getElementById('mobile-ad-container')?.appendChild(mobileDiv);
+
+    /* ================= DESKTOP AD SCRIPT ================= */
+    window.atOptions = {
+        'key' : '3c13920cce38820b13d5a08851207d89',
+        'format' : 'iframe',
+        'height' : 60,
+        'width' : 468,
+        'params' : {}
+    };
+
+    const desktopScript = document.createElement('script');
+    desktopScript.src = "https://www.highperformanceformat.com/3c13920cce38820b13d5a08851207d89/invoke.js";
+    desktopScript.async = true;
+    document.getElementById('desktop-ad-container')?.appendChild(desktopScript);
+
+})();
+</script>
+
+{# ================= END FOOTER ADS ================= #}

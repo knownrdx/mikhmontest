@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profile</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='img/favicon-64.png') }}">
+    <link rel="apple-touch-icon" sizes="256x256" href="{{ url_for('static', filename='img/logo-square-256.png') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+  
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+
+  {% if ui_navbar %}
+    {% include 'partials/navbar.html' %}
+  {% endif %}
+
+  {# Mobile offcanvas sidebar #}
+  {% if ui_sidebar %}
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="appSidebarOffcanvas" aria-labelledby="appSidebarOffcanvasLabel">
+    <div class="offcanvas-header border-bottom">
+      <h6 class="offcanvas-title" id="appSidebarOffcanvasLabel">Menu</h6>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+      {% include 'partials/sidebar_auto.html' %}
+    </div>
+  </div>
+  {% endif %}
+<div class="app-shell d-flex">
+  {% if ui_sidebar %}
+  <aside class="sidebar d-none d-lg-block">
+    {% include 'partials/sidebar_auto.html' %}
+  </aside>
+  {% endif %}
+  <main class="main">
+
+<div class="container py-4" style="max-width: 720px;">
+    <h3 class="fw-bold mb-3">Profile</h3>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} small">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('dashboard.profile') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Username</label>
+            <input class="form-control" value="{{ user_data.username if user_data else '' }}" disabled>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Email</label>
+            <input type="email" name="email" class="form-control" value="{{ user_data.email if user_data else '' }}" placeholder="name@example.com">
+          </div>
+          <hr class="my-4" />
+          <div class="mb-3">
+            <label class="form-label small fw-bold">New Password</label>
+            <input type="password" name="new_password" class="form-control" placeholder="Leave blank to keep current">
+          </div>
+          
+
+          <hr class="my-4" />
+          <!-- ── 2FA Section ─────────────────────────────────────── -->
+          <div class="mb-3">
+            <label class="form-label small fw-bold d-flex align-items-center gap-2">
+              <i class="fa-solid fa-shield-halved text-accent"></i> Two-Factor Authentication
+            </label>
+
+            {% set tfa_method  = user_data.get('two_fa_method', 'email') %}
+            {% set tfa_enabled = user_data.get('two_fa_enabled', False) %}
+
+            <div class="rounded-3 p-3 mb-3 d-flex align-items-center justify-content-between gap-3"
+                 style="background:{% if tfa_enabled %}rgba(34,197,94,.07);border:1.5px solid rgba(34,197,94,.2){% else %}rgba(239,68,68,.06);border:1.5px solid rgba(239,68,68,.18){% endif %}">
+              <div class="d-flex align-items-center gap-2">
+                <i class="fa-solid {% if tfa_enabled %}fa-lock text-success{% else %}fa-lock-open text-danger{% endif %}" style="font-size:1.1rem;"></i>
+                <div>
+                  <div class="fw-bold small">
+                    {% if tfa_enabled %}
+                      2FA Active —
+                      {% if tfa_method == 'totp' %}<span style="color:#6366f1;">Authenticator App</span>
+                      {% else %}<span style="color:var(--accent);">Email OTP</span>{% endif %}
+                    {% else %}
+                      2FA is <strong class="text-danger">disabled</strong>
+                    {% endif %}
+                  </div>
+                  <div class="text-muted" style="font-size:.72rem;">
+                    {% if tfa_enabled %}Your account has extra protection{% else %}Enable 2FA for better security{% endif %}
+                  </div>
+                </div>
+              </div>
+              <a href="{{ url_for('dashboard.setup_2fa') }}"
+                 class="btn btn-sm fw-bold px-3"
+                 style="border-radius:8px;white-space:nowrap;
+                 {% if tfa_enabled %}background:rgba(34,197,94,.1);color:#16a34a;border:1.5px solid rgba(34,197,94,.3);
+                 {% else %}background:var(--accent);color:#fff;border:none;{% endif %}">
+                {% if tfa_enabled %}<i class="fa-solid fa-gear me-1"></i>Manage{% else %}<i class="fa-solid fa-plus me-1"></i>Enable{% endif %}
+              </a>
+            </div>
+          </div>
+
+          <hr class="my-4" />
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Layout</label>
+            <div class="d-flex flex-column gap-2">
+              <label class="form-check">
+                <input class="form-check-input" type="radio" name="layout" value="full" {% if ui_navbar and ui_sidebar %}checked{% endif %}>
+                <span class="form-check-label">Navbar + Sidebar</span>
+              </label>
+              <label class="form-check">
+                <input class="form-check-input" type="radio" name="layout" value="navbar" {% if ui_navbar and not ui_sidebar %}checked{% endif %}>
+                <span class="form-check-label">Only Navbar</span>
+              </label>
+              <label class="form-check">
+                <input class="form-check-input" type="radio" name="layout" value="sidebar" {% if not ui_navbar and ui_sidebar %}checked{% endif %}>
+                <span class="form-check-label">Only Sidebar</span>
+              </label>
+              <label class="form-check">
+                <input class="form-check-input" type="radio" name="layout" value="minimal" {% if not ui_navbar and not ui_sidebar %}checked{% endif %}>
+                <span class="form-check-label">Minimal (hide both)</span>
+              </label>
+            </div>
+            <div class="form-text">You can change this anytime.</div>
+          </div>
+
+          {% if (user_data.get('role') or 'user') == 'user' %}
+          <div class="mb-3">
+            <label class="form-label small fw-bold">After login</label>
+            <select class="form-select" name="landing">
+              <option value="dashboard" {% if (user_data.get('ui_landing') or 'dashboard') == 'dashboard' %}selected{% endif %}>Dashboard</option>
+              <option value="profile" {% if (user_data.get('ui_landing') or 'dashboard') == 'profile' %}selected{% endif %}>Profile</option>
+            </select>
+          </div>
+          {% endif %}
+
+          <!-- ── Last Login Info ─────────────────────────────────── -->
+          {% if user_data.get('last_login') %}
+          <div class="mb-3 p-3 rounded-3" style="background:var(--surface2,#f8fafc);border:1px solid var(--border,#e2e8f0);">
+            <div class="d-flex align-items-center gap-2">
+              <i class="fa-solid fa-clock-rotate-left text-muted"></i>
+              <div class="small">
+                <span class="text-muted">Last login:</span>
+                <strong>{{ user_data.last_login.strftime('%d %b %Y %H:%M') }} UTC</strong>
+                {% if user_data.get('last_login_ip') %}
+                  <span class="text-muted ms-2">from <code>{{ user_data.last_login_ip }}</code></span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+<button class="btn btn-primary w-100">Save</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+<script>
+document.addEventListener("scroll", function () {
+  const nav = document.querySelector(".navbar");
+  if (!nav) return;
+  if (window.scrollY > 10) nav.classList.add("scrolled");
+  else nav.classList.remove("scrolled");
+});
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  </main>
+</div>
+</body>
+</html>

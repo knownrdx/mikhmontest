@@ -1,0 +1,31 @@
+body { background-color: var(--bg); color: var(--text); height: 100vh; overflow: hidden; margin: 0; }
+        .header-bar { background: var(--surface); padding: 10px 20px; border-bottom: 1px solid var(--border); height: 60px; }
+        .main-wrapper { display: flex; height: calc(100vh - 60px); }
+        .editor-section { flex: 1.5; display: flex; flex-direction: column; border-right: 2px solid var(--border); }
+        .CodeMirror { flex-grow: 1; height: 100% !important; font-size: 14px; }
+        .preview-section { flex: 1; background: var(--surface); padding: 20px; display: flex; flex-direction: column; overflow: hidden; }
+        
+        #previewArea { 
+            background: var(--surface); 
+            border-radius: 4px; 
+            flex-grow: 1; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            overflow: auto; 
+            padding: 20px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.4);
+        }
+
+        .voucher-image-container {
+            background: white;
+            color: black;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            width: 320px; 
+            min-height: 100px;
+            text-align: center;
+        }
+
+        .variable-badge { background: var(--accent-10); color: var(--accent); padding: 4px 8px; border-radius: 4px; font-size: 11px; margin: 3px; display: inline-block; cursor: pointer; border: 1px solid var(--border); }

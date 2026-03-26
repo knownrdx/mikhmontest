@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>IP/MAC Bindings - {{ router.name }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+  <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='img/favicon-64.png') }}">
+  <link rel="apple-touch-icon" sizes="256x256" href="{{ url_for('static', filename='img/logo-square-256.png') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_layout.css') }}">
+  <style>
+    .bind-header {
+      background: linear-gradient(135deg, #059669, #10b981);
+      border-radius: 20px;
+      padding: 28px 32px;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .bind-header::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -30px;
+      width: 160px; height: 160px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.08);
+    }
+    .bind-header h4 { position: relative; z-index: 1; margin: 0; }
+    .bind-header .sub { position: relative; z-index: 1; opacity: .85; font-size: .85rem; }
+    .bind-header .actions { position: relative; z-index: 1; }
+
+    .bind-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 6px;
+      font-size: .88rem;
+    }
+    .bind-table thead th {
+      background: var(--surface, #f8fafc);
+      color: var(--muted, #64748b);
+      font-size: .72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      padding: 10px 12px;
+      border: none;
+    }
+    .bind-table tbody tr {
+      background: var(--surface, #fff);
+      border: 1px solid var(--border, #e2e8f0);
+      border-radius: 10px;
+    }
+    .bind-table tbody td {
+      padding: 10px 12px;
+      border: none;
+      vertical-align: middle;
+    }
+    .bind-table tbody tr:hover { background: var(--surface-hover, #f1f5f9); }
+    .type-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: .72rem;
+      font-weight: 700;
+    }
+    .type-bypassed { background: rgba(16,185,129,.12); color: #059669; border: 1px solid rgba(16,185,129,.3); }
+    .type-blocked  { background: rgba(239,68,68,.1);  color: #dc2626; border: 1px solid rgba(239,68,68,.25); }
+    .type-other    { background: rgba(100,116,139,.1); color: #475569; border: 1px solid rgba(100,116,139,.2); }
+    .action-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      border: none; cursor: pointer; transition: all .15s;
+      background: rgba(239,68,68,.08); color: #dc2626;
+      border: 1px solid rgba(239,68,68,.2);
+      border-radius: 7px; width: 30px; height: 30px;
+    }
+    .action-btn:hover { background: rgba(239,68,68,.18); }
+    .empty-state {
+      text-align: center; padding: 60px 20px;
+      color: var(--muted, #64748b);
+    }
+    .empty-state i { font-size: 3rem; opacity: .3; margin-bottom: 16px; }
+  </style>
+</head>
+
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+
+{% if ui_navbar %}
+  {% include 'partials/navbar.html' %}
+  {% include "partials/breadcrumbs.html" %}
+{% endif %}
+
+<div class="container-fluid px-3 py-3" style="max-width:900px;">
+
+  {# Flash messages #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <!-- Header -->
+  <div class="bind-header mb-4">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+      <div>
+        <h4><i class="fa-solid fa-link me-2"></i>IP/MAC Bindings</h4>
+        <div class="sub">{{ router.name }} &mdash; Bypass or block devices from the captive portal</div>
+      </div>
+      <div class="actions d-flex gap-2">
+        <button class="btn btn-light fw-bold btn-sm" data-bs-toggle="modal" data-bs-target="#addBindingModal">
+          <i class="fa-solid fa-plus me-1"></i> Add Binding
+        </button>
+        <a href="{{ url_for('admin.hotspot_users', router_id=router.id) }}" class="btn btn-outline-light btn-sm fw-bold">
+          <i class="fa-solid fa-users me-1"></i> Users
+        </a>
+      </div>
+    </div>
+    <div class="mt-3 d-flex gap-3">
+      <div style="font-size:.8rem;opacity:.9;">
+        <i class="fa-solid fa-circle-check me-1"></i>
+        <strong>{{ bindings | selectattr('type', 'equalto', 'bypassed') | list | length }}</strong> Bypassed
+      </div>
+      <div style="font-size:.8rem;opacity:.9;">
+        <i class="fa-solid fa-ban me-1"></i>
+        <strong>{{ bindings | selectattr('type', 'equalto', 'blocked') | list | length }}</strong> Blocked
+      </div>
+      <div style="font-size:.8rem;opacity:.9;">
+        <i class="fa-solid fa-link me-1"></i>
+        <strong>{{ bindings | length }}</strong> Total
+      </div>
+    </div>
+  </div>
+
+  <!-- Bindings Table -->
+  <div class="table-responsive">
+    {% if bindings %}
+    <table class="bind-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Type</th>
+          <th>MAC Address</th>
+          <th>IP Address</th>
+          <th>Comment</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in bindings %}
+        <tr id="row-{{ b['.id'] | replace('*','') }}">
+          <td class="text-muted" style="font-size:.75rem;">{{ loop.index }}</td>
+          <td>
+            {% set btype = b.get('type','') %}
+            {% if btype == 'bypassed' %}
+              <span class="type-badge type-bypassed"><i class="fa-solid fa-circle-check me-1"></i>Bypassed</span>
+            {% elif btype == 'blocked' %}
+              <span class="type-badge type-blocked"><i class="fa-solid fa-ban me-1"></i>Blocked</span>
+            {% else %}
+              <span class="type-badge type-other">{{ btype or '—' }}</span>
+            {% endif %}
+          </td>
+          <td class="font-monospace" style="font-size:.82rem;">{{ b.get('mac-address') or '—' }}</td>
+          <td class="font-monospace" style="font-size:.82rem;">{{ b.get('address') or '—' }}</td>
+          <td style="color:var(--muted,#64748b);font-size:.82rem;">{{ b.get('comment') or '—' }}</td>
+          <td class="text-end">
+            <button class="action-btn" title="Delete"
+                    onclick="deleteBinding('{{ b['.id'] }}', this)">
+              <i class="fa-solid fa-trash" style="font-size:.75rem;"></i>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <i class="fa-solid fa-link"></i>
+      <div style="font-weight:700;font-size:1rem;margin-bottom:6px;">No bindings yet</div>
+      <div style="font-size:.88rem;">Add a binding to bypass or block a device from the captive portal.</div>
+      <button class="btn btn-success btn-sm fw-bold mt-3" data-bs-toggle="modal" data-bs-target="#addBindingModal">
+        <i class="fa-solid fa-plus me-1"></i> Add First Binding
+      </button>
+    </div>
+    {% endif %}
+  </div>
+
+</div><!-- /container -->
+
+<!-- Add Binding Modal -->
+<div class="modal fade" id="addBindingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-body border">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="fa-solid fa-link text-success me-2"></i>Add IP/MAC Binding</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="addBindingForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="router_id" value="{{ router.id }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold">MAC Address</label>
+            <input type="text" class="form-control" name="mac_address" id="bindMac"
+                   placeholder="AA:BB:CC:DD:EE:FF" pattern="([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}">
+            <div class="form-text">Leave blank if binding by IP only.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">IP Address <span class="text-muted fw-normal">(optional)</span></label>
+            <input type="text" class="form-control" name="ip_address" id="bindIp"
+                   placeholder="192.168.88.100">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Type</label>
+            <select class="form-select" name="binding_type" id="bindType">
+              <option value="bypassed" selected>Bypassed — Skip captive portal login</option>
+              <option value="blocked">Blocked — Block device access</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Comment <span class="text-muted fw-normal">(optional)</span></label>
+            <input type="text" class="form-control" name="comment" id="bindComment" placeholder="e.g. user name or device label">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-success btn-sm fw-bold px-4" onclick="submitAddBinding()">
+            <i class="fa-solid fa-check me-1"></i> Add Binding
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toastContainer" style="position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  function showToast(type, title, msg) {
+    const colors = {success:'#10b981',danger:'#ef4444',warning:'#f59e0b',info:'#3b82f6'};
+    const t = document.createElement('div');
+    t.style.cssText = `background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);border-left:4px solid ${colors[type]||'#3b82f6'};border-radius:10px;padding:12px 16px;box-shadow:0 4px 20px rgba(0,0,0,.12);min-width:240px;max-width:320px;animation:slideIn .3s ease;`;
+    t.innerHTML = `<div style="font-weight:700;font-size:.88rem;color:${colors[type]||'#3b82f6'};">${title}</div>${msg?`<div style="font-size:.8rem;color:var(--muted,#64748b);margin-top:2px;">${msg}</div>`:''}`;
+    document.getElementById('toastContainer').appendChild(t);
+    setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); }, 3000);
+  }
+
+  function submitAddBinding() {
+    const form = document.getElementById('addBindingForm');
+    const mac = document.getElementById('bindMac').value.trim();
+    const ip = document.getElementById('bindIp').value.trim();
+    if (!mac && !ip) { showToast('warning', 'Required', 'Enter a MAC or IP address'); return; }
+
+    const data = new URLSearchParams(new FormData(form)).toString();
+    fetch('{{ url_for("admin.add_hotspot_ip_binding") }}', {
+      method: 'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'XMLHttpRequest'},
+      body: data
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        showToast('success', 'Binding Added', 'Reload to see updated list');
+        bootstrap.Modal.getInstance(document.getElementById('addBindingModal')).hide();
+        setTimeout(() => location.reload(), 1200);
+      } else {
+        showToast('danger', 'Error', d.error || 'Failed to add binding');
+      }
+    })
+    .catch(() => showToast('danger', 'Error', 'Network error'));
+  }
+
+  function deleteBinding(bindingId, btn) {
+    if (!confirm('Delete this binding?')) return;
+    const routerId = '{{ router.id }}';
+    const url = `/hotspot/delete_ip_binding/${routerId}/${encodeURIComponent(bindingId)}`;
+    fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) {
+          const row = btn.closest('tr');
+          if (row) {
+            row.style.transition = 'opacity .3s';
+            row.style.opacity = '0';
+            setTimeout(() => row.remove(), 300);
+          }
+          showToast('success', 'Deleted', 'Binding removed');
+        } else {
+          showToast('danger', 'Error', d.error || 'Failed to delete');
+        }
+      })
+      .catch(() => showToast('danger', 'Error', 'Network error'));
+  }
+</script>
+<style>
+  @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+</style>
+
+</body>
+</html>

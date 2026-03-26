@@ -1,0 +1,8 @@
+{# Auto sidebar selection based on role #}
+{% if is_admin %}
+  {% include 'partials/sidebar_admin.html' %}
+{% elif user_data and (user_data.role if user_data.role is defined else user_data.get('role')) == 'sub-admin' %}
+  {% include 'partials/sidebar_staff.html' %}
+{% else %}
+  {% include 'partials/sidebar_user.html' %}
+{% endif %}

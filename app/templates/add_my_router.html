@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Routers — {{ BRAND_NAME }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_layout.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <style>
+    .setup-card { max-width:600px; margin:40px auto; }
+    .setup-card .card {
+      background: var(--surface, var(--bs-body-bg));
+      border: 1px solid var(--border, rgba(0,0,0,.08));
+      border-radius: 20px;
+      overflow: hidden;
+    }
+    .setup-header {
+      background: linear-gradient(135deg, rgba(59,130,246,.08), rgba(139,92,246,.06));
+      padding: 28px 32px 24px;
+      border-bottom: 1px solid var(--border, rgba(0,0,0,.06));
+    }
+    .setup-header h4 { font-weight: 800; font-size: 1.15rem; margin: 0; color: var(--text, var(--bs-body-color)); }
+    .setup-header p { font-size: .82rem; color: var(--muted, #64748b); margin: 6px 0 0; }
+    .setup-body { padding: 28px 32px; }
+    .setup-body .form-label { font-size: .78rem; font-weight: 600; color: var(--muted, #64748b); }
+    .setup-body .form-control, .setup-body .form-select {
+      background: var(--bs-body-bg);
+      border: 1px solid var(--border, rgba(0,0,0,.12));
+      border-radius: 10px;
+      color: var(--text, var(--bs-body-color));
+    }
+    .setup-body .form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,.15); }
+    .btn-setup {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: #fff; border: none; padding: 12px 28px;
+      border-radius: 10px; font-weight: 700;
+    }
+    .btn-setup:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(59,130,246,.3); color: #fff; }
+    .info-tip {
+      background: rgba(59,130,246,.06);
+      border: 1px solid rgba(59,130,246,.12);
+      border-radius: 10px; padding: 12px 16px;
+      font-size: .78rem; color: var(--muted, #64748b); margin-bottom: 20px;
+    }
+    .info-tip i { color: #3b82f6; }
+    .flash-msg { padding: 10px 16px; border-radius: 10px; font-size: .82rem; margin-bottom: 16px; }
+    .flash-msg.success { background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.2); color: #10b981; }
+    .flash-msg.danger  { background: rgba(239,68,68,.1);  border: 1px solid rgba(239,68,68,.2);  color: #ef4444; }
+    .flash-msg.warning { background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.2); color: #f59e0b; }
+
+    .router-list { margin-bottom: 24px; }
+    .router-item {
+      background: var(--surface2, var(--bs-secondary-bg));
+      border: 1px solid var(--border, rgba(0,0,0,.08));
+      border-radius: 14px; padding: 16px;
+      margin-bottom: 12px;
+      transition: all .2s;
+    }
+    .router-item:hover { box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+    .router-item .r-name { font-weight: 700; font-size: .9rem; color: var(--text, var(--bs-body-color)); }
+    .router-item .r-ip { font-size: .75rem; color: var(--muted, #64748b); font-family: monospace; }
+    .router-item .r-user { font-size: .72rem; color: var(--muted, #94a3b8); }
+    .router-actions { display: flex; gap: 6px; }
+    .router-actions .btn { font-size: .7rem; padding: 4px 10px; border-radius: 8px; font-weight: 600; }
+
+    .edit-form-section { background: var(--bs-body-bg); border: 1px solid var(--border, rgba(0,0,0,.08)); border-radius: 10px; padding: 16px; }
+    .edit-form-section .form-label { font-size: .72rem; font-weight: 600; color: var(--muted, #64748b); }
+    .edit-form-section .form-control { background: var(--bs-body-bg); border: 1px solid var(--border, rgba(0,0,0,.12)); border-radius: 8px; color: var(--text, var(--bs-body-color)); }
+  </style>
+  <script>
+    (function(){var t=localStorage.getItem('ui_theme')||localStorage.getItem('user-theme')||'light';document.documentElement.setAttribute('data-bs-theme',t);if(t==='dark')document.body.classList.add('theme-dark');})();
+  </script>
+</head>
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+
+{% if ui_navbar %}
+  {% include 'partials/navbar.html' %}
+{% endif %}
+
+{% if ui_sidebar %}
+<div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="appSidebarOffcanvas">
+  <div class="offcanvas-header border-bottom"><h6 class="offcanvas-title">Menu</h6>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button></div>
+  <div class="offcanvas-body p-0">{% include 'partials/sidebar_auto.html' %}</div>
+</div>
+{% endif %}
+
+<div class="app-shell d-flex">
+  {% if ui_sidebar %}
+  <aside class="sidebar d-none d-lg-block">{% include 'partials/sidebar_auto.html' %}</aside>
+  {% endif %}
+  <main class="main">
+
+<div class="setup-card">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="flash-msg {{ cat }}"><i class="fa-solid {{ 'fa-check-circle' if cat == 'success' else 'fa-exclamation-circle' }} me-1"></i> {{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  {# ── Existing Routers with Edit/Delete ── #}
+  {% if user_routers and user_routers|length > 0 %}
+  <div class="router-list">
+    <h6 style="font-size:.85rem;font-weight:700;margin-bottom:12px;color:var(--text,var(--bs-body-color));">
+      <i class="fa-solid fa-server me-2" style="color:#06b6d4;"></i>Your Routers ({{ user_routers|length }})
+    </h6>
+    {% for r in user_routers %}
+    <div class="router-item" id="routerView_{{ r.id }}">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="flex-grow-1">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;"></span>
+            <span class="r-name">{{ r.name }}</span>
+          </div>
+          <div class="r-ip"><i class="fa-solid fa-network-wired me-1" style="font-size:.6rem;"></i>{{ r.ip }}</div>
+          {% if r.api_user %}<div class="r-user"><i class="fa-solid fa-user me-1" style="font-size:.55rem;"></i>{{ r.api_user }}</div>{% endif %}
+        </div>
+        <div class="router-actions">
+          <button class="btn btn-outline-primary" onclick="toggleEditForm('{{ r.id }}')" title="Edit">
+            <i class="fa-solid fa-pen me-1"></i>Edit
+          </button>
+          <a href="{{ url_for('dashboard.delete_my_router', r_id=r.id) }}" class="btn btn-outline-danger" onclick="return confirm('Delete router {{ r.name }}? This cannot be undone.')" title="Delete">
+            <i class="fa-solid fa-trash"></i>
+          </a>
+        </div>
+      </div>
+
+      {# Inline Edit Form (hidden by default) #}
+      <div class="mt-3 edit-form-section" id="editForm_{{ r.id }}" style="display:none;">
+        <form method="POST" action="{{ url_for('dashboard.edit_my_router') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="r_id" value="{{ r.id }}">
+          <div class="mb-2">
+            <label class="form-label">Router Name</label>
+            <input class="form-control form-control-sm" name="r_name" value="{{ r.name }}" required>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-md-7">
+              <label class="form-label">IP / Hostname</label>
+              <input class="form-control form-control-sm" name="r_ip" value="{{ r.ip }}" required>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label">API Username</label>
+              <input class="form-control form-control-sm" name="r_user" value="{{ r.api_user }}" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">New API Password <span class="text-muted fw-normal">(leave blank to keep current)</span></label>
+            <input class="form-control form-control-sm" type="password" name="r_pass" placeholder="••••••••">
+          </div>
+          <div class="d-flex gap-2 justify-content-end">
+            <button type="button" class="btn btn-sm btn-secondary" style="font-size:.75rem;border-radius:8px;" onclick="toggleEditForm('{{ r.id }}')">Cancel</button>
+            <button type="submit" class="btn btn-sm btn-primary fw-bold" style="font-size:.75rem;border-radius:8px;">
+              <i class="fa-solid fa-save me-1"></i>Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# ── Add New Router ── #}
+  <div class="card shadow-lg">
+    <div class="setup-header">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <h4><i class="fa-solid fa-plus-circle me-2" style="color:#3b82f6;"></i>Add New Router</h4>
+          <p>Connect your MikroTik router to start managing your hotspot.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="setup-body">
+
+      {% if can_add_router %}
+
+        <div class="info-tip">
+          <i class="fa-solid fa-info-circle me-1"></i>
+          Make sure API access is enabled on your MikroTik router.
+          Go to <strong>IP → Services</strong> and enable <strong>api</strong> (port 8728).
+        </div>
+
+        <form method="POST" action="{{ url_for('dashboard.save_my_router') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label class="form-label">Router Name</label>
+            <input class="form-control" name="r_name" placeholder="My Router" required>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-8">
+              <label class="form-label">Router IP / Hostname</label>
+              <input class="form-control" name="r_ip" placeholder="192.168.1.1 or router.example.com" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">API Port</label>
+              <input class="form-control" name="r_port" type="number" value="8728" placeholder="8728">
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">API Username</label>
+              <input class="form-control" name="r_user" placeholder="admin" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">API Password</label>
+              <input class="form-control" type="password" name="r_pass" placeholder="••••••••" required>
+            </div>
+          </div>
+          <button type="submit" class="btn-setup w-100"><i class="fa-solid fa-plug me-2"></i>Connect Router</button>
+        </form>
+
+      {% else %}
+        <div class="flash-msg warning">
+          <i class="fa-solid fa-lock me-1"></i>
+          {% if max_routers_reached %}
+            Router adding is not available.
+            Contact admin to upgrade.
+          {% else %}
+            Router adding is not available at this time.
+          {% endif %}
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <div class="text-center mt-3">
+    <a href="{{ url_for('dashboard.dashboard') }}" class="text-muted text-decoration-none" style="font-size:.82rem;">
+      <i class="fa-solid fa-arrow-left me-1"></i> Back to Dashboard
+    </a>
+  </div>
+</div>
+
+  </main>
+</div>
+
+{% if request.endpoint != 'login' %}{% include 'partials/footer_ads.html' %}{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+function toggleEditForm(rId) {
+  const form = document.getElementById('editForm_' + rId);
+  if (form) {
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+document.addEventListener("scroll", function() {
+  const nav = document.querySelector(".navbar");
+  if (nav) nav.classList.toggle("scrolled", window.scrollY > 10);
+});
+</script>
+</body>
+</html>

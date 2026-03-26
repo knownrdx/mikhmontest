@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Two-Factor Authentication — {{ BRAND_NAME }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+  <style>
+    :root { --accent: {{ BRAND_ACCENT|default('#2563eb') }}; }
+    body { background: var(--bg, #f1f5f9); }
+
+    .tfa-card {
+      background: var(--surface, #fff);
+      border-radius: 20px;
+      box-shadow: 0 4px 32px rgba(0,0,0,.08);
+      overflow: hidden;
+      max-width: 520px;
+      margin: 48px auto;
+    }
+    .tfa-header {
+      background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 80%, #000) 100%);
+      padding: 28px 32px 24px;
+      color: #fff;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .tfa-header-icon {
+      width: 52px; height: 52px; border-radius: 14px;
+      background: rgba(255,255,255,.18);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .method-card {
+      border: 2px solid var(--border, #e2e8f0);
+      border-radius: 14px;
+      padding: 18px 20px;
+      cursor: pointer;
+      transition: all .18s;
+      background: var(--surface, #fff);
+      display: flex; align-items: center; gap: 16px;
+    }
+    .method-card:hover { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+    .method-card.active  { border-color: var(--accent); background: rgba(37,99,235,.04); }
+    .method-icon {
+      width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+    }
+    .qr-wrap {
+      background: #fff;
+      border: 2px solid var(--border, #e2e8f0);
+      border-radius: 16px;
+      padding: 18px;
+      display: inline-block;
+    }
+    .code-input {
+      letter-spacing: 10px;
+      font-size: 26px;
+      font-weight: 800;
+      text-align: center;
+      font-family: monospace;
+      border: 2px solid var(--border, #e2e8f0);
+      border-radius: 12px;
+      padding: 12px 16px;
+      width: 100%;
+      color: #0f172a;
+      transition: border-color .18s, box-shadow .18s;
+    }
+    .code-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+      outline: none;
+    }
+    .secret-box {
+      background: #f8fafc;
+      border: 1.5px dashed var(--border, #cbd5e1);
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-family: monospace;
+      font-size: 13px;
+      letter-spacing: 2px;
+      color: #334155;
+      word-break: break-all;
+      cursor: pointer;
+    }
+    .app-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #f1f5f9; border: 1px solid #e2e8f0;
+      border-radius: 99px; padding: 4px 12px;
+      font-size: .72rem; font-weight: 600; color: #475569;
+    }
+    .step-badge {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--accent); color: #fff;
+      font-size: .7rem; font-weight: 800;
+      display: inline-flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+{% if ui_navbar %}{% include 'partials/navbar.html' %}{% include 'partials/breadcrumbs.html' %}{% endif %}
+
+{% if ui_sidebar %}
+<div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="appSidebarOffcanvas">
+  <div class="offcanvas-header border-bottom"><h6 class="offcanvas-title">Menu</h6>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button></div>
+  <div class="offcanvas-body p-0">{% include 'partials/sidebar_auto.html' %}</div>
+</div>
+{% endif %}
+
+<div class="app-shell d-flex">
+  {% if ui_sidebar %}<aside class="sidebar d-none d-lg-block">{% include 'partials/sidebar_auto.html' %}</aside>{% endif %}
+  <main class="main">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} small mx-3 mt-3">{{ msg }}</div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+
+  <div class="container px-3">
+  <div class="tfa-card">
+
+    <!-- Header -->
+    <div class="tfa-header">
+      <div class="tfa-header-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <div>
+        <div style="font-size:1.1rem;font-weight:800;">Two-Factor Authentication</div>
+        <div style="font-size:.82rem;opacity:.8;">Extra security for your account</div>
+      </div>
+    </div>
+
+    <div class="p-4">
+
+    <!-- ═══════════════════════════════════════════════════════════
+         STEP: CHOOSE METHOD
+    ══════════════════════════════════════════════════════════════ -->
+    {% if step == 'choose' %}
+
+      {% set method = user_data.get('two_fa_method', 'email') %}
+      {% set enabled = user_data.get('two_fa_enabled', False) %}
+
+      <!-- Current status -->
+      <div class="mb-4 p-3 rounded-3" style="background:{% if enabled %}rgba(34,197,94,.07);border:1.5px solid rgba(34,197,94,.25){% else %}rgba(239,68,68,.07);border:1.5px solid rgba(239,68,68,.2){% endif %}">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fa-solid {% if enabled %}fa-lock text-success{% else %}fa-lock-open text-danger{% endif %}"></i>
+          <span class="fw-bold small">2FA is currently
+            <strong>{% if enabled %}ON — {{ method|upper }}{% else %}OFF{% endif %}</strong>
+          </span>
+        </div>
+      </div>
+
+      <!-- Method cards -->
+      <div class="d-flex flex-column gap-3 mb-4">
+
+        <!-- Authenticator App -->
+        <div class="method-card {% if method == 'totp' and enabled %}active{% endif %}">
+          <div class="method-icon" style="background:rgba(99,102,241,.1);color:#6366f1;">
+            <i class="fa-solid fa-mobile-screen-button"></i>
+          </div>
+          <div class="flex-grow-1">
+            <div class="fw-bold" style="font-size:.92rem;">Authenticator App</div>
+            <div class="text-muted" style="font-size:.75rem;">Google Authenticator, Aegis, Authy…</div>
+            <div class="mt-2 d-flex flex-wrap gap-1">
+              <span class="app-chip"><i class="fa-brands fa-google me-1"></i>Google Auth</span>
+              <span class="app-chip">Aegis</span>
+              <span class="app-chip">Authy</span>
+              <span class="app-chip">1Password</span>
+            </div>
+          </div>
+          <form method="POST" action="{{ url_for('dashboard.setup_2fa') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="generate">
+            <button class="btn btn-sm fw-bold px-3"
+              style="background:rgba(99,102,241,.1);color:#6366f1;border:1.5px solid rgba(99,102,241,.3);border-radius:8px;">
+              {% if method == 'totp' and enabled %}Re-setup{% else %}Setup{% endif %}
+            </button>
+          </form>
+        </div>
+
+        <!-- Email OTP -->
+        <div class="method-card {% if method == 'email' and enabled %}active{% endif %}">
+          <div class="method-icon" style="background:rgba(37,99,235,.1);color:var(--accent);">
+            <i class="fa-solid fa-envelope"></i>
+          </div>
+          <div class="flex-grow-1">
+            <div class="fw-bold" style="font-size:.92rem;">Email OTP</div>
+            <div class="text-muted" style="font-size:.75rem;">
+              Code sent to
+              <strong>{{ user_data.get('email') or 'no email set' }}</strong>
+            </div>
+          </div>
+          {% if user_data.get('email') %}
+          <form method="POST" action="{{ url_for('dashboard.setup_2fa') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="set_email">
+            <button class="btn btn-sm fw-bold px-3"
+              style="background:rgba(37,99,235,.08);color:var(--accent);border:1.5px solid rgba(37,99,235,.25);border-radius:8px;">
+              {% if method == 'email' and enabled %}Active{% else %}Enable{% endif %}
+            </button>
+          </form>
+          {% else %}
+          <span class="text-muted small">Set email first</span>
+          {% endif %}
+        </div>
+
+        <!-- Disable -->
+        {% if enabled %}
+        <form method="POST" action="{{ url_for('dashboard.setup_2fa') }}" class="mt-1">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="disable">
+          <button class="btn btn-outline-danger btn-sm w-100 fw-bold">
+            <i class="fa-solid fa-shield-xmark me-2"></i>Disable 2FA
+          </button>
+        </form>
+        {% endif %}
+
+      </div>
+
+      <a href="{{ url_for('dashboard.profile') }}" class="btn btn-secondary btn-sm w-100">
+        <i class="fa-solid fa-arrow-left me-1"></i>Back to Profile
+      </a>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         STEP: SCAN + VERIFY
+    ══════════════════════════════════════════════════════════════ -->
+    {% elif step == 'verify' %}
+
+      <!-- Steps indicator -->
+      <div class="d-flex align-items-center gap-2 mb-4">
+        <span class="step-badge">1</span>
+        <span class="small fw-semibold">Scan QR code</span>
+        <div style="flex:1;height:2px;background:var(--border,#e2e8f0);border-radius:99px;"></div>
+        <span class="step-badge">2</span>
+        <span class="small fw-semibold">Enter code</span>
+      </div>
+
+      <!-- Step 1: Scan -->
+      <div class="mb-4">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <span class="step-badge">1</span>
+          <span class="fw-bold">Open your authenticator app and scan</span>
+        </div>
+        <div class="text-center mb-3">
+          <div class="qr-wrap d-inline-block">
+            <img src="data:image/png;base64,{{ qr_b64 }}" width="200" height="200" alt="QR Code" style="display:block;border-radius:4px;">
+          </div>
+        </div>
+        <div class="text-muted small text-center mb-2">Can't scan? Enter this key manually:</div>
+        <div class="secret-box text-center" id="secretBox" onclick="copySecret()" title="Click to copy">
+          {{ manual_code }}
+          <i class="fa-regular fa-copy ms-2 text-muted" style="font-size:.8rem;"></i>
+        </div>
+        <div class="text-muted text-center mt-1" style="font-size:.68rem;" id="copyMsg"></div>
+      </div>
+
+      <!-- Step 2: Enter code -->
+      <div class="mb-4">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <span class="step-badge">2</span>
+          <span class="fw-bold">Enter the 6-digit code from your app</span>
+        </div>
+        <form method="POST" action="{{ url_for('dashboard.setup_2fa') }}" id="verifyForm">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="verify">
+          <input type="hidden" name="secret" value="{{ secret }}">
+          <input type="text" name="code" id="codeInput" class="code-input mb-3"
+                 maxlength="6" inputmode="numeric" pattern="[0-9]*"
+                 placeholder="000000" autocomplete="one-time-code" autofocus>
+          <button type="submit" class="btn btn-primary w-100 fw-bold py-2" id="verifyBtn">
+            <i class="fa-solid fa-check me-2"></i>Verify & Activate
+          </button>
+        </form>
+      </div>
+
+      <!-- Supported apps -->
+      <div class="text-center mb-2">
+        <div class="text-muted small mb-2">Compatible apps</div>
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+          <span class="app-chip"><i class="fa-brands fa-google me-1"></i>Google Authenticator</span>
+          <span class="app-chip">Aegis (Android)</span>
+          <span class="app-chip">Authy</span>
+          <span class="app-chip">1Password</span>
+          <span class="app-chip">Microsoft Auth</span>
+        </div>
+      </div>
+
+      <a href="{{ url_for('dashboard.setup_2fa') }}" class="btn btn-outline-secondary btn-sm w-100 mt-3">
+        <i class="fa-solid fa-arrow-left me-1"></i>Back
+      </a>
+
+    {% endif %}
+    </div>
+  </div>
+  </div>
+
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+(function() {
+  const saved = localStorage.getItem('ui_theme') || 'light';
+  document.documentElement.setAttribute('data-bs-theme', saved);
+})();
+
+// Auto-submit when 6 digits entered
+const inp = document.getElementById('codeInput');
+if (inp) {
+  inp.addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '').slice(0, 6);
+    if (this.value.length === 6) {
+      document.getElementById('verifyForm').submit();
+    }
+  });
+}
+
+// Copy secret to clipboard
+function copySecret() {
+  const text = document.getElementById('secretBox').innerText.replace(/\s+/g,'').replace(/[^A-Z2-7]/gi,'');
+  navigator.clipboard.writeText(text).then(() => {
+    document.getElementById('copyMsg').textContent = '✓ Copied to clipboard';
+    setTimeout(() => document.getElementById('copyMsg').textContent = '', 2000);
+  });
+}
+
+document.addEventListener("scroll", () => {
+  const nav = document.querySelector(".navbar");
+  if (nav) nav.classList.toggle("scrolled", window.scrollY > 10);
+});
+</script>
+</body>
+</html>

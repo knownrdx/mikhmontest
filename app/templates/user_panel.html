@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>User Portal - {{ BRAND_NAME }}</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='img/favicon-64.png') }}">
+    <link rel="apple-touch-icon" sizes="256x256" href="{{ url_for('static', filename='img/logo-square-256.png') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_layout.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user_panel.css') }}">
+    <script>
+      /* Apply saved theme immediately to prevent flash */
+      (function(){var t=localStorage.getItem('ui_theme')||localStorage.getItem('admin_theme')||localStorage.getItem('user-theme')||'light';document.documentElement.setAttribute('data-bs-theme',t);if(t==='dark')document.documentElement.classList.add('theme-dark');})();
+    </script>
+</head>
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+
+{% if ui_navbar %}
+  {% include 'partials/navbar.html' %}
+{% endif %}
+
+<div class="app-shell d-flex">
+    <main class="main" style="width:100%;">
+<div class="container-fluid">
+
+    {% set has_any_permission = user_data.get('allow_reports') or user_data.get('allow_user_manage') or user_data.get('allow_profiles') or user_data.get('can_generate') %}
+
+{# ╔══════════════════════════════════════════════════════════════════╗
+   ║  NO ROUTER: Welcome card for new users                          ║
+   ╚══════════════════════════════════════════════════════════════════╝ #}
+{% if not all_routers or all_routers|length == 0 %}
+    <div class="row justify-content-center mt-5">
+      <div class="col-12 col-md-8 col-lg-6">
+        <div class="card shadow-lg border-0 text-center" style="border-radius:20px;overflow:hidden;">
+          <div style="height:4px;background:linear-gradient(90deg,#3b82f6,#8b5cf6,#ec4899);"></div>
+          <div class="p-4 p-md-5">
+            <div class="d-flex justify-content-center mb-4">
+              <div style="width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(139,92,246,.15));display:flex;align-items:center;justify-content:center;">
+                <i class="fa-solid fa-rocket" style="font-size:1.8rem;color:#3b82f6;"></i>
+              </div>
+            </div>
+            <h4 class="fw-bold mb-2">Welcome to {{ BRAND_NAME }}!</h4>
+            <p class="text-muted mb-4" style="font-size:.9rem;">Your account is ready. Add your MikroTik router to get started.</p>
+            <div class="text-start mb-4 mx-auto" style="max-width:360px;">
+              <div class="d-flex align-items-start gap-3 mb-3">
+                <div class="d-flex align-items-center justify-content-center flex-shrink-0 rounded-2" style="width:28px;height:28px;background:rgba(59,130,246,.12);"><span class="fw-bold text-primary" style="font-size:.8rem;">1</span></div>
+                <div><div class="fw-semibold" style="font-size:.85rem;">Add Your Router</div><div class="text-muted" style="font-size:.78rem;">Enter your MikroTik IP, API port, username and password.</div></div>
+              </div>
+              <div class="d-flex align-items-start gap-3 mb-3">
+                <div class="d-flex align-items-center justify-content-center flex-shrink-0 rounded-2" style="width:28px;height:28px;background:rgba(16,185,129,.12);"><span class="fw-bold text-success" style="font-size:.8rem;">2</span></div>
+                <div><div class="fw-semibold" style="font-size:.85rem;">Connect & Verify</div><div class="text-muted" style="font-size:.78rem;">We'll connect to your router and verify the credentials.</div></div>
+              </div>
+              <div class="d-flex align-items-start gap-3">
+                <div class="d-flex align-items-center justify-content-center flex-shrink-0 rounded-2" style="width:28px;height:28px;background:rgba(139,92,246,.12);"><span class="fw-bold" style="font-size:.8rem;color:#8b5cf6;">3</span></div>
+                <div><div class="fw-semibold" style="font-size:.85rem;">Start Managing</div><div class="text-muted" style="font-size:.78rem;">Generate vouchers, manage users, view reports — all from one dashboard.</div></div>
+              </div>
+            </div>
+            <a href="{{ url_for('dashboard.my_router') }}" class="btn btn-primary btn-sm px-4 py-2 fw-bold" style="border-radius:10px;">
+              <i class="fa-solid fa-plug me-1"></i> Add Your Router
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+{% elif not has_any_permission %}
+
+    <div class="row justify-content-center mt-5">
+        <div class="col-12 col-md-6 col-lg-5">
+            <div class="card p-4 border-top border-4 shadow-lg" style="border-color:var(--accent) !important;">
+
+                {# Router status badge #}
+                {% if selected_router %}
+                <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
+                  <span id="routerStatusBadge" style="font-size:.75rem;padding:4px 12px;border-radius:20px;font-weight:600;background:rgba(100,116,139,.1);color:#64748b;border:1px solid rgba(100,116,139,.2);">
+                    <i class="fa-solid fa-spinner fa-spin me-1" style="font-size:.6rem;"></i>Checking...
+                  </span>
+                  <span id="routerUptimeBadge" style="display:none;font-size:.7rem;color:var(--muted,#94a3b8);"></span>
+                </div>
+                {% endif %}
+                
+                <ul class="nav nav-pills nav-fill mb-3 gap-1" role="tablist">
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-bold" data-bs-toggle="pill" data-bs-target="#tabReset" type="button" role="tab">
+                      <i class="fa-solid fa-rotate-left me-1"></i> MAC Reset
+                    </button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold" data-bs-toggle="pill" data-bs-target="#tabCheck" type="button" role="tab">
+                      <i class="fa-solid fa-magnifying-glass me-1"></i> Check Status
+                    </button>
+                  </li>
+                </ul>
+                
+                <div class="tab-content">
+                  {# MAC Reset Tab #}
+                  <div class="tab-pane fade show active" id="tabReset" role="tabpanel">
+                    <div class="text-center mb-3">
+                        <div class="bg-warning bg-opacity-10 d-inline-block p-3 rounded-circle mb-2">
+                            <i class="fa-solid fa-rotate-left fa-2x text-warning"></i>
+                        </div>
+                        <h5 class="fw-bold">Voucher MAC Reset</h5>
+                        <p class="text-muted small mb-0">Enter your voucher code to reset MAC binding.</p>
+                        <p class="text-muted small">Enter the code to reset the MAC binding of your voucher.</p>
+                    </div>
+                    <form action="{{ url_for('admin.reset_mac') }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="router_id" value="{{ selected_router.id if selected_router else '' }}">
+                        <div class="mb-3">
+                            <input type="text" name="h_user" class="form-control form-control-lg text-center fw-bold border-warning" placeholder="Enter Voucher Code" required>
+                        </div>
+                        <button class="btn btn-warning btn-lg w-100 fw-bold shadow-sm">
+                            <i class="fa-solid fa-bolt me-2"></i>RESET MAC NOW
+                        </button>
+                    </form>
+                  </div>
+
+                  {# Check Status Tab #}
+                  <div class="tab-pane fade" id="tabCheck" role="tabpanel">
+                    <div class="text-center mb-3">
+                        <div class="bg-primary bg-opacity-10 d-inline-block p-3 rounded-circle mb-2">
+                            <i class="fa-solid fa-magnifying-glass fa-2x text-accent"></i>
+                        </div>
+                        <h5 class="fw-bold">Check Voucher Status</h5>
+                        <p class="text-muted small">Enter your voucher code to see remaining time and usage.</p>
+                    </div>
+                    <div class="mb-3">
+                        <input type="text" id="vCheckCode" class="form-control form-control-lg text-center fw-bold" style="border-color:var(--accent);" placeholder="Enter Voucher Code">
+                    </div>
+                    <button class="btn btn-lg w-100 fw-bold shadow-sm text-white" style="background:var(--accent);" onclick="checkVoucherStatus()">
+                        <i class="fa-solid fa-search me-2"></i>CHECK NOW
+                    </button>
+                    <div id="vCheckResult" class="mt-3" style="display:none;">
+                      <div class="card p-3 mt-2" style="border:1px solid var(--border);border-radius:12px;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <span class="fw-bold" id="vResCode"></span>
+                          <span class="badge" id="vResBadge"></span>
+                        </div>
+                        <div class="row g-2 text-center" style="font-size:.85rem;">
+                          <div class="col-6"><div class="text-muted small">Remaining</div><div class="fw-bold" id="vResRemaining">--</div></div>
+                          <div class="col-6"><div class="text-muted small">Profile</div><div class="fw-bold" id="vResProfile">--</div></div>
+                          <div class="col-6"><div class="text-muted small">Download</div><div class="fw-bold text-success" id="vResDown">--</div></div>
+                          <div class="col-6"><div class="text-muted small">Upload</div><div class="fw-bold text-info" id="vResUp">--</div></div>
+                          <div class="col-12" id="vResExpiryRow" style="display:none;"><div class="text-muted small">Expires</div><div class="fw-bold" id="vResExpiry">--</div></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div id="vCheckError" class="alert alert-danger mt-3 small" style="display:none;"></div>
+                  </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+{# ╔══════════════════════════════════════════════════════════════════╗
+   ║  PERMISSION USERS: Full dashboard FIRST, compact tools BOTTOM   ║
+   ╚══════════════════════════════════════════════════════════════════╝ #}
+{% else %}
+
+    {# --- Row 1: System Status + Revenue --- #}
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm h-100" style="overflow:hidden;">
+              {# ── helpers ── #}
+              {% set sys = data.system %}
+              {% set free_mem = sys.get('free-memory', 0)|int %}
+              {% set total_mem = sys.get('total-memory', 1)|int %}
+              {% set used_mem = total_mem - free_mem %}
+              {% set mem_pct = ((used_mem / total_mem) * 100)|round(0)|int if total_mem > 0 else 0 %}
+              {% set free_hdd = sys.get('free-hdd-space', 0)|int %}
+              {% set total_hdd = sys.get('total-hdd-space', 1)|int %}
+              {% set hdd_pct = (((total_hdd - free_hdd) / total_hdd) * 100)|round(0)|int if total_hdd > 0 else 0 %}
+              {% set cpu_load = sys.get('cpu-load', 0)|int %}
+              {% set mem_mb = (used_mem / 1048576)|round(1) %}
+              {% set total_mb = (total_mem / 1048576)|round(1) %}
+              {% set free_hdd_mb = (free_hdd / 1048576)|round(0)|int %}
+
+              {# header #}
+              <div class="d-flex align-items-center justify-content-between px-3 pt-3 pb-2">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="rounded-circle d-flex align-items-center justify-content-center"
+                       style="width:34px;height:34px;background:rgba(37,99,235,.12);">
+                    <i class="fa-solid fa-server text-accent" style="font-size:.85rem;"></i>
+                  </div>
+                  <div>
+                    <div class="fw-bold" style="font-size:.88rem;line-height:1.2;">{{ selected_router.name if selected_router else '—' }}</div>
+                    {% if sys.get('board-name') %}
+                    <div class="text-muted" style="font-size:.7rem;">{{ sys.get('board-name') }}{% if sys.get('version') %} · v{{ sys.get('version') }}{% endif %}</div>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="text-end d-flex flex-column align-items-end gap-1">
+                  {% if sys and sys.get('uptime') %}
+                    <span style="font-size:.68rem;padding:3px 10px;border-radius:16px;font-weight:700;background:rgba(22,163,74,.12);color:#16a34a;border:1px solid rgba(22,163,74,.25);">
+                      <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#16a34a;margin-right:4px;vertical-align:middle;"></span>Online
+                    </span>
+                  {% else %}
+                    <span style="font-size:.68rem;padding:3px 10px;border-radius:16px;font-weight:700;background:rgba(220,38,38,.1);color:#dc2626;border:1px solid rgba(220,38,38,.22);">
+                      <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#dc2626;margin-right:4px;vertical-align:middle;"></span>Offline
+                    </span>
+                  {% endif %}
+                  <div style="font-size:.68rem;color:var(--muted,#64748b);">{{ sys.get('uptime', '—') }}</div>
+                </div>
+              </div>
+
+              <div class="px-3 pb-3" style="display:grid;gap:10px;">
+
+                {# ── CPU ── #}
+                <div>
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span style="font-size:.72rem;font-weight:600;color:var(--muted,#64748b);">
+                      <i class="fa-solid fa-microchip me-1" style="color:#8b5cf6;"></i>CPU
+                      {% if sys.get('cpu-frequency') %}<span class="ms-1 fw-normal">{{ sys.get('cpu-frequency') }} MHz</span>{% endif %}
+                    </span>
+                    <span style="font-size:.75rem;font-weight:800;
+                      color:{% if cpu_load > 80 %}#ef4444{% elif cpu_load > 50 %}#f59e0b{% else %}#22c55e{% endif %};">
+                      {{ cpu_load }}%
+                    </span>
+                  </div>
+                  <div style="height:6px;border-radius:99px;background:var(--border,#e2e8f0);overflow:hidden;">
+                    <div style="height:100%;border-radius:99px;width:{{ cpu_load }}%;transition:width .8s ease;
+                      background:{% if cpu_load > 80 %}linear-gradient(90deg,#f97316,#ef4444){% elif cpu_load > 50 %}linear-gradient(90deg,#fbbf24,#f59e0b){% else %}linear-gradient(90deg,#34d399,#22c55e){% endif %};"></div>
+                  </div>
+                </div>
+
+                {# ── RAM ── #}
+                <div>
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span style="font-size:.72rem;font-weight:600;color:var(--muted,#64748b);">
+                      <i class="fa-solid fa-memory me-1" style="color:#3b82f6;"></i>RAM
+                    </span>
+                    <span style="font-size:.72rem;font-weight:700;color:var(--text);">
+                      {{ mem_mb }} <span class="fw-normal text-muted">/ {{ total_mb }} MB</span>
+                      <span class="ms-1" style="color:{% if mem_pct > 80 %}#ef4444{% elif mem_pct > 60 %}#f59e0b{% else %}#22c55e{% endif %};">({{ mem_pct }}%)</span>
+                    </span>
+                  </div>
+                  <div style="height:6px;border-radius:99px;background:var(--border,#e2e8f0);overflow:hidden;">
+                    <div style="height:100%;border-radius:99px;width:{{ mem_pct }}%;transition:width .8s ease;
+                      background:{% if mem_pct > 80 %}linear-gradient(90deg,#f97316,#ef4444){% elif mem_pct > 60 %}linear-gradient(90deg,#fbbf24,#f59e0b){% else %}linear-gradient(90deg,#60a5fa,#3b82f6){% endif %};"></div>
+                  </div>
+                </div>
+
+                {# ── Storage ── #}
+                {% if total_hdd > 0 %}
+                <div>
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span style="font-size:.72rem;font-weight:600;color:var(--muted,#64748b);">
+                      <i class="fa-solid fa-hard-drive me-1" style="color:#10b981;"></i>Storage
+                    </span>
+                    <span style="font-size:.72rem;font-weight:700;color:var(--text);">
+                      {{ free_hdd_mb }} MB free
+                      <span class="ms-1" style="color:{% if hdd_pct > 90 %}#ef4444{% elif hdd_pct > 70 %}#f59e0b{% else %}#22c55e{% endif %};">({{ hdd_pct }}% used)</span>
+                    </span>
+                  </div>
+                  <div style="height:6px;border-radius:99px;background:var(--border,#e2e8f0);overflow:hidden;">
+                    <div style="height:100%;border-radius:99px;width:{{ hdd_pct }}%;transition:width .8s ease;
+                      background:{% if hdd_pct > 90 %}linear-gradient(90deg,#f97316,#ef4444){% elif hdd_pct > 70 %}linear-gradient(90deg,#fbbf24,#f59e0b){% else %}linear-gradient(90deg,#34d399,#10b981){% endif %};"></div>
+                  </div>
+                </div>
+                {% endif %}
+
+                {# ── Bottom info row ── #}
+                <div class="d-flex flex-wrap gap-2 pt-1" style="border-top:1px solid var(--border,#e2e8f0);">
+                  <span style="font-size:.68rem;color:var(--muted,#64748b);display:flex;align-items:center;gap:4px;">
+                    <i class="fa-solid fa-users" style="color:var(--accent,#2563eb);"></i>
+                    <b style="color:var(--text);">{{ data.active_count }}</b> active
+                  </span>
+                  <span style="font-size:.68rem;color:var(--muted,#64748b);display:flex;align-items:center;gap:4px;">
+                    <i class="fa-solid fa-ticket" style="color:#8b5cf6;"></i>
+                    <b style="color:var(--text);">{{ data.total_users }}</b> vouchers
+                  </span>
+                  {% if sys.get('cpu-count') %}
+                  <span style="font-size:.68rem;color:var(--muted,#64748b);display:flex;align-items:center;gap:4px;">
+                    <i class="fa-solid fa-layer-group" style="color:#10b981;"></i>
+                    <b style="color:var(--text);">{{ sys.get('cpu-count') }}</b> core
+                  </span>
+                  {% endif %}
+                  {% if sys.get('platform') %}
+                  <span style="font-size:.68rem;color:var(--muted,#64748b);display:flex;align-items:center;gap:4px;">
+                    <i class="fa-solid fa-code-branch" style="color:#f59e0b;"></i>
+                    {{ sys.get('platform') }}
+                  </span>
+                  {% endif %}
+                </div>
+
+              </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+            {% if user_data.get('allow_reports') %}
+            <a href="{{ url_for('admin.sales_report') }}" class="text-decoration-none">
+                <div class="card p-3 income-card h-100">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="fw-bold text-accent small mb-1">REVENUE & SELLS</h6>
+                            <h2 class="fw-bold mb-0 text-white">{{ "%.2f"|format(data.income_today) }} <span class="fs-6">AED</span></h2>
+                            <div class="mt-2">
+                                <p class="text-success small fw-bold mb-0"><i class="fa-solid fa-shopping-cart me-1"></i>Today: {{ data.sells_today }}</p>
+                                <p class="text-info small fw-bold mb-0"><i class="fa-solid fa-calendar-alt me-1"></i>Month: {{ "%.2f"|format(data.income_month) }} AED ({{ data.sells_month }})</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chart-line fa-2x opacity-50 text-accent"></i>
+                    </div>
+                </div>
+            </a>
+            {% else %}
+            <div class="card p-3 bg-primary bg-opacity-10 h-100 d-flex align-items-center justify-content-center text-center">
+                <div>
+                    <i class="fa-solid fa-shield-halved fa-2x text-accent mb-2"></i>
+                    <p class="small text-muted mb-0">Welcome! Use the tools below or navigate via menu.</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# --- Row 2: Stat Cards --- #}
+    <div class="row g-2 g-md-3 mb-4 row-cols-2 row-cols-md-4">
+        {% if user_data.get('allow_reports') %}
+        <div class="col">
+            <a href="{{ url_for('admin.monitor_router') }}" class="card stat-card bg-active shadow">
+                <i class="fa-solid fa-wifi"></i><h2>{{ data.active_count }}</h2><small>Active Now</small>
+            </a>
+        </div>
+        {% endif %}
+
+        {% if user_data.get('allow_user_manage') %}
+        <div class="col">
+            <a href="{{ url_for('admin.hotspot_users') }}" class="card stat-card bg-users shadow">
+                <i class="fa-solid fa-users"></i><h2>{{ data.total_users }}</h2><small>Total Users</small>
+            </a>
+        </div>
+        <div class="col">
+            <a href="{{ url_for('admin.quick_user') }}" class="card stat-card bg-add shadow">
+                <i class="fa-solid fa-user-plus"></i><h2>NEW</h2><small>Quick Add</small>
+            </a>
+        </div>
+        {% endif %}
+
+        {% if user_data.get('allow_profiles') %}
+        <div class="col">
+            <a href="{{ url_for('admin.hotspot_profiles') }}" class="card stat-card bg-add shadow">
+                <i class="fa-solid fa-pie-chart"></i><h2>PRO</h2><small>Profiles</small>
+            </a>
+        </div>
+        {% endif %}
+
+        {% if user_data.get('can_generate') %}
+        <div class="col">
+            <a href="{{ url_for('admin.create_vouchers_page') }}" class="card stat-card bg-gen shadow {% if not selected_router %}disabled opacity-75{% endif %}">
+                <i class="fa-solid fa-ticket-alt"></i><h2>GEN</h2><small>Voucher</small>
+            </a>
+        </div>
+        {% endif %}
+
+        {% if user_data.get('allow_port_lock') or is_admin %}
+        <div class="col">
+            <a href="{{ url_for('admin.port_lock_page') }}" class="card stat-card shadow {% if not selected_router %}disabled opacity-75{% endif %}" style="border-left:4px solid #f59e0b;">
+                <i class="fa-solid fa-lock" style="color:#f59e0b;"></i><h2 style="color:#f59e0b;">PORT</h2><small>Lock/Unlock</small>
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    {# --- Row 3: Traffic Chart --- #}
+    {% if user_data.get('allow_reports') %}
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="card p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                      <h6 class="fw-bold m-0"><i class="fa-solid fa-chart-area me-2 text-accent"></i>Live Traffic</h6>
+                      <!-- Download pill -->
+                      <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(var(--accent-rgb,37,99,235),.09);border:1px solid rgba(var(--accent-rgb,37,99,235),.2);border-radius:99px;padding:3px 12px;font-size:.78rem;">
+                        <span style="width:10px;height:10px;border-radius:50%;background:var(--accent,#2563eb);flex-shrink:0;"></span>
+                        <span class="text-muted">↓</span>
+                        <span id="trafficDl" style="font-weight:700;color:var(--accent,#2563eb);">— </span>
+                      </span>
+                      <!-- Upload pill -->
+                      <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(239,68,68,.09);border:1px solid rgba(239,68,68,.2);border-radius:99px;padding:3px 12px;font-size:.78rem;">
+                        <span style="width:10px;height:10px;border-radius:50%;background:#ef4444;flex-shrink:0;"></span>
+                        <span class="text-muted">↑</span>
+                        <span id="trafficUl" style="font-weight:700;color:#ef4444;">— </span>
+                      </span>
+                    </div>
+                    <select id="interfaceSelect" class="form-select form-select-sm w-auto">
+                        {% for iface in data.interfaces %}
+                        <option value="{{ iface.name }}">{{ iface.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="chart-container"><canvas id="trafficChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ─── BOTTOM: Compact MAC Reset + Check Status (collapsible) ─── #}
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <h6 class="fw-bold m-0" style="font-size:.88rem;">
+                          <i class="fa-solid fa-rotate-left text-warning me-2"></i>MAC Reset
+                      </h6>
+                      {% if selected_router %}
+                      <span id="routerStatusBadge" style="font-size:.68rem;padding:2px 8px;border-radius:16px;font-weight:600;background:rgba(100,116,139,.1);color:#64748b;border:1px solid rgba(100,116,139,.2);">
+                        <i class="fa-solid fa-spinner fa-spin me-1" style="font-size:.55rem;"></i>Checking...
+                      </span>
+                      {% endif %}
+                    </div>
+                    <form action="{{ url_for('admin.reset_mac') }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="router_id" value="{{ selected_router.id if selected_router else '' }}">
+                        <div class="input-group">
+                            <input type="text" name="h_user" class="form-control" placeholder="Voucher Code" required>
+                            <button class="btn btn-warning fw-bold px-3">
+                                <i class="fa-solid fa-bolt me-1"></i>Reset
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <h6 class="fw-bold m-0" style="font-size:.88rem;">
+                          <i class="fa-solid fa-magnifying-glass text-accent me-2"></i>Check Voucher
+                      </h6>
+                      {% if selected_router %}
+                      <span id="routerStatusBadge2" style="font-size:.68rem;padding:2px 8px;border-radius:16px;font-weight:600;background:rgba(100,116,139,.1);color:#64748b;border:1px solid rgba(100,116,139,.2);">
+                        <i class="fa-solid fa-spinner fa-spin me-1" style="font-size:.55rem;"></i>Checking...
+                      </span>
+                      {% endif %}
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="vCheckCode" class="form-control" placeholder="Voucher Code">
+                        <button class="btn fw-bold px-3 text-white" style="background:var(--accent);" onclick="checkVoucherStatus()">
+                            <i class="fa-solid fa-search me-1"></i>Check
+                        </button>
+                    </div>
+                    <div id="vCheckResult" class="mt-2" style="display:none;">
+                      <div class="d-flex flex-wrap gap-2 align-items-center mt-2" style="font-size:.82rem;">
+                        <span class="fw-bold" id="vResCode"></span>
+                        <span class="badge" id="vResBadge"></span>
+                        <span class="text-muted">|</span>
+                        <span><i class="fa-solid fa-clock me-1"></i><span id="vResRemaining"></span></span>
+                        <span class="text-muted">|</span>
+                        <span><i class="fa-solid fa-layer-group me-1"></i><span id="vResProfile"></span></span>
+                        <span class="text-muted">|</span>
+                        <span class="text-success"><i class="fa-solid fa-arrow-down me-1"></i><span id="vResDown"></span></span>
+                        <span class="text-info"><i class="fa-solid fa-arrow-up me-1"></i><span id="vResUp"></span></span>
+                        <span id="vResExpiryRow" style="display:none;"><span class="text-muted">| Exp:</span> <span id="vResExpiry"></span></span>
+                      </div>
+                    </div>
+                    <div id="vCheckError" class="text-danger small mt-2" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endif %}
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // ── Router Online/Offline Status Badge ──────────────────────────
+  (function() {
+    const routerId = '{{ selected_router.id if selected_router else "" }}';
+    if (!routerId) return;
+
+    function setStatus(online, uptime) {
+      const badges = ['routerStatusBadge', 'routerStatusBadge2'];
+      badges.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (online) {
+          el.innerHTML = '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#16a34a;margin-right:5px;vertical-align:middle;"></span>Online';
+          el.style.background = 'rgba(22,163,74,.12)';
+          el.style.color = '#16a34a';
+          el.style.border = '1px solid rgba(22,163,74,.25)';
+        } else {
+          el.innerHTML = '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#dc2626;margin-right:5px;vertical-align:middle;"></span>Offline';
+          el.style.background = 'rgba(220,38,38,.08)';
+          el.style.color = '#dc2626';
+          el.style.border = '1px solid rgba(220,38,38,.2)';
+        }
+      });
+      // Show uptime next to the main badge (no-permission card only)
+      const uptimeEl = document.getElementById('routerUptimeBadge');
+      if (uptimeEl) {
+        if (online && uptime) {
+          uptimeEl.textContent = '⏱ ' + uptime;
+          uptimeEl.style.display = '';
+        } else {
+          uptimeEl.style.display = 'none';
+        }
+      }
+    }
+
+    window.addEventListener('load', function() {
+      fetch('/api/router-ping?router_id=' + encodeURIComponent(routerId))
+        .then(r => r.json())
+        .then(d => setStatus(d.online === true, d.uptime || ''))
+        .catch(() => setStatus(false, ''));
+    });
+  })();
+  // ────────────────────────────────────────────────────────────────
+
+    // Voucher Status Check
+    async function checkVoucherStatus() {
+      const code = document.getElementById('vCheckCode').value.trim();
+      if (!code) return;
+      const result = document.getElementById('vCheckResult');
+      const errDiv = document.getElementById('vCheckError');
+      result.style.display = 'none';
+      errDiv.style.display = 'none';
+      
+      const fd = new FormData();
+      fd.append('code', code);
+      fd.append('router_id', '{{ selected_router.id if selected_router else "" }}');
+      
+      try {
+        const res = await fetch('{{ url_for("admin.voucher_status_check") }}', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!data.ok) {
+          errDiv.textContent = data.error || 'Not found';
+          errDiv.style.display = 'block';
+          return;
+        }
+        
+        document.getElementById('vResCode').textContent = data.code;
+        document.getElementById('vResRemaining').textContent = data.remaining;
+        document.getElementById('vResProfile').textContent = data.profile || '-';
+        document.getElementById('vResDown').textContent = data.download_mb + ' MB';
+        document.getElementById('vResUp').textContent = data.upload_mb + ' MB';
+        
+        const badge = document.getElementById('vResBadge');
+        const statusMap = {
+          'online': ['Online', 'bg-success'],
+          'active': ['Active', 'bg-primary'],
+          'unused': ['Not Used', 'bg-secondary'],
+          'expired': ['Expired', 'bg-danger'],
+          'disabled': ['Disabled', 'bg-warning text-dark'],
+        };
+        const [label, cls] = statusMap[data.status] || ['Unknown', 'bg-secondary'];
+        badge.textContent = label;
+        badge.className = 'badge ' + cls;
+        
+        const exRow = document.getElementById('vResExpiryRow');
+        if (data.expiry) {
+          document.getElementById('vResExpiry').textContent = data.expiry;
+          exRow.style.display = 'inline';
+        } else {
+          exRow.style.display = 'none';
+        }
+        
+        result.style.display = 'block';
+      } catch (e) {
+        errDiv.textContent = 'Connection error';
+        errDiv.style.display = 'block';
+      }
+    }
+    
+    document.getElementById('vCheckCode').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); checkVoucherStatus(); }
+    });
+
+    // Traffic Chart
+    function _hexToRgba(hex, alpha){
+        try{
+            const h = (hex || '').trim().replace('#','');
+            const v = h.length === 3 ? h.split('').map(c=>c+c).join('') : h;
+            const r = parseInt(v.substring(0,2),16);
+            const g = parseInt(v.substring(2,4),16);
+            const b = parseInt(v.substring(4,6),16);
+            if([r,g,b].some(n=>Number.isNaN(n))) return `rgba(13,110,253,${alpha})`;
+            return `rgba(${r},${g},${b},${alpha})`;
+        }catch(_e){
+            return `rgba(13,110,253,${alpha})`;
+        }
+    }
+    const _accent = (getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#0d6efd').trim();
+
+    const ctx = document.getElementById('trafficChart')?.getContext('2d');
+    if(ctx) {
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(20).fill(''),
+                datasets: [
+                    { label: 'Download', borderColor: _accent, backgroundColor: _hexToRgba(_accent, 0.12), data: Array(20).fill(0), fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+                    { label: 'Upload', borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.10)', data: Array(20).fill(0), fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }
+                ]
+            },
+            options: {
+                animation: false,
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx2 => ' ' + ctx2.dataset.label + ': ' + fmtBits((ctx2.parsed.y || 0) * 1e6)
+                        }
+                    }
+                },
+                scales: {
+                    x: { display: false },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: v => v >= 1000 ? (v/1000).toFixed(1)+'G' : v >= 1 ? v.toFixed(0)+'M' : (v*1000).toFixed(0)+'K',
+                            maxTicksLimit: 4,
+                            font: { size: 10 }
+                        },
+                        grid: { color: 'rgba(128,128,128,0.1)' }
+                    }
+                }
+            }
+        });
+
+        function fmtBits(bps) {
+            if (bps >= 1e9) return (bps/1e9).toFixed(2) + ' Gbps';
+            if (bps >= 1e6) return (bps/1e6).toFixed(2) + ' Mbps';
+            if (bps >= 1e3) return (bps/1e3).toFixed(1) + ' Kbps';
+            return bps + ' bps';
+        }
+
+        function updateTraffic() {
+            const iface = document.getElementById('interfaceSelect')?.value;
+            if(!iface) return;
+            fetch(`{{ url_for('admin.get_traffic', router_id='__RID__', interface_name='__IFACE__') }}`.replace('__RID__', '{{ selected_router.id if selected_router else '' }}').replace('__IFACE__', iface))
+                .then(res => res.json())
+                .then(data => {
+                    const rxMb = data.rx / 1e6;
+                    const txMb = data.tx / 1e6;
+                    chart.data.datasets[0].data.shift(); chart.data.datasets[0].data.push(rxMb);
+                    chart.data.datasets[1].data.shift(); chart.data.datasets[1].data.push(txMb);
+                    chart.update();
+                    const dlEl = document.getElementById('trafficDl');
+                    const ulEl = document.getElementById('trafficUl');
+                    if (dlEl) dlEl.textContent = fmtBits(data.rx);
+                    if (ulEl) ulEl.textContent = fmtBits(data.tx);
+                }).catch(e => console.log('Offline'));
+        }
+        setInterval(updateTraffic, {{ traffic_interval }} * 1000);
+        updateTraffic();
+    }
+</script>
+
+<style>
+@media (max-width: 767px){
+  iframe[src*="interstitial"],iframe[src*="popup"],iframe[src*="pop"],
+  iframe[src*="full"],iframe[src*="overlay"]{ display:none !important; }
+  div[style*="position: fixed"][style*="top: 0"][style*="bottom: 0"],
+  div[style*="position:fixed"][style*="top:0"][style*="bottom:0"]{ display:none !important; }
+  body{ overflow:auto !important; }
+}
+</style>
+<script>
+(function(){
+  if (window.__NO_MOBILE_FULLSCREEN_ADS__) return;
+  window.__NO_MOBILE_FULLSCREEN_ADS__ = true;
+  function kill(){
+    if (window.innerWidth > 767) return;
+    document.querySelectorAll("div, iframe").forEach(el => {
+      const st = (el.getAttribute("style") || "").replace(/\s/g,'').toLowerCase();
+      const src = (el.getAttribute("src") || "").toLowerCase();
+      const isFixed = st.includes("position:fixed");
+      const isFull = st.includes("100vh") || (st.includes("top:0") && st.includes("bottom:0"));
+      const isBad = el.tagName === "IFRAME" && (src.includes("interstitial") || src.includes("popup") || src.includes("overlay"));
+      if ((isFixed && isFull) || isBad) el.remove();
+    });
+  }
+  document.addEventListener("DOMContentLoaded", kill);
+  window.addEventListener("load", kill);
+  setInterval(kill, 800);
+})();
+</script>
+
+
+{# ══════════════════════════════════════════════════════
+   HOTSPOT LOGS SECTION — only for users with permissions
+══════════════════════════════════════════════════════ #}
+{% if has_any_permission %}
+<div class="container-fluid px-3 mb-4">
+
+  {# ── Hotspot Logs from MikroTik (allow_reports) ── #}
+  {% if user_data.get('allow_reports') %}
+  <div class="card border-0 shadow-sm mb-3" style="border-radius:16px;overflow:hidden;">
+    <div class="d-flex align-items-center justify-content-between px-4 py-3 border-bottom"
+         style="background:var(--surface,#1e293b);">
+      <div class="d-flex align-items-center gap-2">
+        <div style="width:34px;height:34px;border-radius:10px;background:rgba(16,185,129,.15);display:flex;align-items:center;justify-content:center;">
+          <i class="fa-solid fa-wifi" style="color:#10b981;font-size:.85rem;"></i>
+        </div>
+        <div>
+          <div class="fw-bold" style="font-size:.9rem;">Hotspot Logs</div>
+          <div class="text-muted" style="font-size:.68rem;">Login, logout, failed, MAC reset &amp; more</div>
+        </div>
+      </div>
+      <input type="text" id="hsLogSearch" placeholder="Search…"
+             class="form-control form-control-sm" style="width:130px;border-radius:8px;font-size:.76rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:inherit;"
+             oninput="filterHsLogs()">
+    </div>
+
+
+
+    <div style="max-height:420px;overflow-y:auto;">
+      <table class="table table-hover mb-0" style="font-size:.82rem;">
+        <thead style="position:sticky;top:0;z-index:2;background:rgba(15,23,42,.95);">
+          <tr>
+            <th class="px-4 py-2 text-muted fw-semibold" style="font-size:.65rem;letter-spacing:.5px;white-space:nowrap;">TIME</th>
+            <th class="py-2 text-muted fw-semibold" style="font-size:.65rem;letter-spacing:.5px;">EVENT</th>
+            <th class="py-2 text-muted fw-semibold" style="font-size:.65rem;letter-spacing:.5px;">MESSAGE</th>
+          </tr>
+        </thead>
+        <tbody id="hsLogBody">
+          {% for log in data.get('hotspot_logs', []) %}
+          {% set msg = (log.message or '')|lower %}
+          {% set topics = (log.topics or '')|lower %}
+          {# Classify event type #}
+          {% if 'logged in' in msg or 'login' in msg and 'fail' not in msg and 'error' not in msg %}
+            {% set ev_color = '#4ade80' %}
+            {% set ev_bg = 'rgba(34,197,94,.1)' %}
+            {% set ev_border = 'rgba(34,197,94,.2)' %}
+            {% set ev_icon = 'fa-right-to-bracket' %}
+            {% set ev_label = 'Login' %}
+          {% elif 'logged out' in msg or 'logout' in msg %}
+            {% set ev_color = '#94a3b8' %}
+            {% set ev_bg = 'rgba(100,116,139,.1)' %}
+            {% set ev_border = 'rgba(100,116,139,.2)' %}
+            {% set ev_icon = 'fa-right-from-bracket' %}
+            {% set ev_label = 'Logout' %}
+          {% elif 'fail' in msg or 'error' in msg or 'wrong' in msg or 'reject' in msg %}
+            {% set ev_color = '#f87171' %}
+            {% set ev_bg = 'rgba(239,68,68,.1)' %}
+            {% set ev_border = 'rgba(239,68,68,.2)' %}
+            {% set ev_icon = 'fa-triangle-exclamation' %}
+            {% set ev_label = 'Failed' %}
+          {% elif 'mac' in msg %}
+            {% set ev_color = '#fbbf24' %}
+            {% set ev_bg = 'rgba(245,158,11,.1)' %}
+            {% set ev_border = 'rgba(245,158,11,.2)' %}
+            {% set ev_icon = 'fa-rotate-left' %}
+            {% set ev_label = 'MAC' %}
+          {% elif 'remov' in msg or 'delet' in msg or 'kick' in msg or 'disconnect' in msg %}
+            {% set ev_color = '#fb923c' %}
+            {% set ev_bg = 'rgba(249,115,22,.1)' %}
+            {% set ev_border = 'rgba(249,115,22,.2)' %}
+            {% set ev_icon = 'fa-user-minus' %}
+            {% set ev_label = 'Remove' %}
+          {% elif 'debug' in topics %}
+            {% set ev_color = '#a78bfa' %}
+            {% set ev_bg = 'rgba(139,92,246,.08)' %}
+            {% set ev_border = 'rgba(139,92,246,.15)' %}
+            {% set ev_icon = 'fa-bug' %}
+            {% set ev_label = 'Debug' %}
+          {% else %}
+            {% set ev_color = '#60a5fa' %}
+            {% set ev_bg = 'rgba(37,99,235,.08)' %}
+            {% set ev_border = 'rgba(37,99,235,.15)' %}
+            {% set ev_icon = 'fa-circle-info' %}
+            {% set ev_label = 'Info' %}
+          {% endif %}
+          <tr class="hslog-row" data-msg="{{ msg }}" data-topics="{{ topics }}">
+            <td class="px-4 py-2" style="white-space:nowrap;color:#64748b;font-size:.72rem;font-family:monospace;">{{ log.time }}</td>
+            <td class="py-2" style="white-space:nowrap;">
+              <span style="font-size:.65rem;padding:2px 8px;border-radius:20px;background:{{ ev_bg }};color:{{ ev_color }};border:1px solid {{ ev_border }};font-weight:600;">
+                <i class="fa-solid {{ ev_icon }} me-1" style="font-size:.55rem;"></i>{{ ev_label }}
+              </span>
+            </td>
+            <td class="py-2 pe-4" style="font-size:.78rem;color:#cbd5e1;max-width:300px;">
+              <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ log.message }}">
+                {{ log.message }}
+              </span>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="text-center py-5 text-muted">
+            <i class="fa-solid fa-inbox fa-2x mb-2 d-block opacity-25"></i>
+            No hotspot log entries found
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="px-4 py-2 border-top" style="font-size:.68rem;color:var(--muted,#64748b);background:var(--surface2);">
+      <span id="hsLogCount">{{ data.get('hotspot_logs', [])|length }} entries</span>
+      <span class="float-end">MikroTik system log · hotspot topic</span>
+    </div>
+  </div>
+  {% endif %}
+
+
+</div>
+
+<script>
+function filterUserLogs() {
+  const q = (document.getElementById('userLogSearch')?.value || '').toLowerCase();
+  document.querySelectorAll('.ulog-row').forEach(r => {
+    r.style.display = !q || r.dataset.action.includes(q) || r.dataset.details.includes(q) ? '' : 'none';
+  });
+}
+function filterHsLogs() {
+  const q = (document.getElementById('hsLogSearch')?.value || '').toLowerCase();
+  let vis = 0;
+  document.querySelectorAll('.hslog-row').forEach(r => {
+    const show = !q || r.dataset.msg.includes(q) || r.dataset.topics.includes(q);
+    r.style.display = show ? '' : 'none';
+    if (show) vis++;
+  });
+  const cnt = document.getElementById('hsLogCount');
+  if (cnt) cnt.textContent = vis + ' entries';
+}
+</script>
+{% endif %}
+{# ════════════════════════════════════════════════════════ #}
+
+{% include 'partials/footer_ads.html' %}
+
+<script>
+document.addEventListener("scroll", function () {
+  const nav = document.querySelector(".navbar");
+  if (!nav) return;
+  if (window.scrollY > 10) nav.classList.add("scrolled");
+  else nav.classList.remove("scrolled");
+});
+</script>
+
+    </main>
+</div>
+</body>
+</html>

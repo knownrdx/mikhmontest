@@ -1,0 +1,7 @@
+body { background-color: var(--bg); transition: 0.3s; }
+.card { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); }
+        .section-title { font-weight: bold; border-left: 4px solid var(--accent); padding-left: 10px; margin-bottom: 15px; color: var(--text); }
+        .badge-online { background-color: var(--bs-success, #2ecc71); color: white; font-size: 0.7rem; padding: 3px 8px; border-radius: 10px; }
+        .badge-offline { background-color: var(--bs-danger, #e74c3c); color: white; font-size: 0.7rem; padding: 3px 8px; border-radius: 10px; }
+        .btn-xs { padding: 0.2rem 0.5rem; font-size: 0.75rem; border-radius: 5px; }
+        .navbar { background: var(--surface) !important; border-bottom: 2px solid var(--accent); }

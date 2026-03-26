@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hotspot Profiles - {{ router.name }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+  <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='img/favicon-64.png') }}">
+  <link rel="apple-touch-icon" sizes="256x256" href="{{ url_for('static', filename='img/logo-square-256.png') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_layout.css') }}">
+  <style>
+    .hp-header {
+      background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #7c3aed));
+      border-radius: 20px;
+      padding: 28px 32px;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .hp-header::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -30px;
+      width: 160px; height: 160px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.08);
+    }
+    .hp-header::after {
+      content: '';
+      position: absolute;
+      bottom: -50px; left: 30%;
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.05);
+    }
+    .hp-header h4 { position: relative; z-index: 1; }
+    .hp-header .sub { position: relative; z-index: 1; opacity: .85; font-size: .85rem; }
+    .hp-header .actions { position: relative; z-index: 1; }
+
+    .hp-stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 20px;
+      text-align: center;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .hp-stat:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+    .hp-stat .num { font-size: 1.8rem; font-weight: 800; color: var(--accent); line-height: 1; }
+    .hp-stat .lbl { font-size: .75rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-top: 4px; }
+
+    .search-box {
+      position: relative;
+      max-width: 320px;
+    }
+    .search-box input {
+      padding-left: 40px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+    }
+    .search-box .icon {
+      position: absolute;
+      left: 14px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: .85rem;
+    }
+
+    .profile-table { border-collapse: separate; border-spacing: 0; }
+    .profile-table thead th {
+      background: var(--bg) !important;
+      font-size: .72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted);
+      padding: 14px 16px;
+      border-bottom: 2px solid var(--border);
+      position: sticky; top: 0; z-index: 2;
+    }
+    .profile-table tbody td {
+      padding: 14px 16px;
+      vertical-align: middle;
+      border-bottom: 1px solid var(--border);
+      font-size: .88rem;
+    }
+    .profile-table tbody tr {
+      transition: background .15s;
+    }
+    .profile-table tbody tr:hover {
+      background: var(--accent-10) !important;
+    }
+
+    .profile-name {
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .profile-name .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 8px;
+      font-size: .76rem;
+      font-weight: 600;
+      background: var(--accent-10);
+      color: var(--accent);
+    }
+    .tag.tag-green { background: rgba(16,185,129,.1); color: #059669; }
+    .tag.tag-amber { background: rgba(245,158,11,.1); color: #d97706; }
+    .tag.tag-purple { background: rgba(139,92,246,.1); color: #7c3aed; }
+    .tag.tag-slate { background: rgba(100,116,139,.1); color: #64748b; }
+
+    [data-bs-theme="dark"] .tag { opacity: .9; }
+    [data-bs-theme="dark"] .tag.tag-green { background: rgba(16,185,129,.15); color: #34d399; }
+    [data-bs-theme="dark"] .tag.tag-amber { background: rgba(245,158,11,.15); color: #fbbf24; }
+    [data-bs-theme="dark"] .tag.tag-purple { background: rgba(139,92,246,.15); color: #a78bfa; }
+
+    .edit-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 10px;
+      font-size: .8rem;
+      font-weight: 600;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      text-decoration: none;
+      transition: all .2s;
+    }
+    .edit-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-10);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,.06);
+    }
+
+    .empty-profiles {
+      text-align: center;
+      padding: 60px 24px;
+    }
+    .empty-profiles .icon-wrap {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: var(--accent-10);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    .empty-profiles .icon-wrap i { font-size: 32px; color: var(--accent); }
+
+    @media (max-width: 768px) {
+      .hp-header { padding: 20px; border-radius: 16px; }
+      .hp-header h4 { font-size: 1.1rem; }
+      .profile-table thead { display: none; }
+      .profile-table tbody tr {
+        display: block;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        margin-bottom: 12px;
+        padding: 14px 16px;
+        background: var(--surface);
+      }
+      .profile-table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 0;
+        border: none;
+        font-size: .84rem;
+      }
+      .profile-table tbody td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        font-size: .72rem;
+        text-transform: uppercase;
+        color: var(--muted);
+        letter-spacing: .03em;
+      }
+      .profile-table tbody td:last-child {
+        justify-content: flex-end;
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
+        margin-top: 6px;
+      }
+      .profile-table tbody td:last-child::before { display: none; }
+    }
+  </style>
+</head>
+
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+
+  {% if ui_navbar %}
+  {% include 'partials/navbar.html' %}
+  {% endif %}
+
+  {% if ui_sidebar %}
+  <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="appSidebarOffcanvas" aria-labelledby="appSidebarOffcanvasLabel">
+    <div class="offcanvas-header border-bottom">
+      <h6 class="offcanvas-title" id="appSidebarOffcanvasLabel">Menu</h6>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+      {% include 'partials/sidebar_auto.html' %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="app-shell d-flex">
+    {% if ui_sidebar %}
+    <aside class="sidebar d-none d-lg-block">
+      {% include 'partials/sidebar_auto.html' %}
+    </aside>
+    {% endif %}
+    <main class="main">
+
+      <div class="container py-4" style="max-width: 1100px;">
+
+        {# ── Header Banner ── #}
+        <div class="hp-header mb-4">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+            <div>
+              <h4 class="mb-1 fw-bold">
+                <i class="fa-solid fa-layer-group me-2"></i>Hotspot Profiles
+              </h4>
+              <div class="sub">
+                <i class="fa-solid fa-router me-1"></i> {{ router.name }}
+              </div>
+            </div>
+            <div class="actions d-flex gap-2 flex-wrap">
+              <a class="btn btn-sm btn-light fw-bold" href="{{ url_for('admin.hotspot_users') }}">
+                <i class="fa-solid fa-users me-1"></i> Users
+              </a>
+              <a class="btn btn-sm btn-warning fw-bold" href="{{ url_for('admin.hotspot_profile_add') }}">
+                <i class="fa-solid fa-plus me-1"></i> Add Profile
+              </a>
+              <button class="btn btn-sm btn-outline-light fw-bold" id="refreshProfilesBtn"
+                      onclick="refreshAllProfiles()" title="Re-push on-login script & expiry scheduler to all profiles">
+                <i class="fa-solid fa-rotate-right me-1"></i> Refresh Scripts
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {# ── Flash Messages ── #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show small mb-3">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {# ── Stats Row ── #}
+        <div class="row g-3 mb-4">
+          <div class="col-6 col-md-3">
+            <div class="hp-stat">
+              <div class="num">{{ profiles|length }}</div>
+              <div class="lbl">Total Profiles</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="hp-stat">
+              <div class="num" id="withRateCount">-</div>
+              <div class="lbl">Rate Limited</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="hp-stat">
+              <div class="num" id="withValidityCount">-</div>
+              <div class="lbl">With Expiry</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="hp-stat">
+              <div class="num" id="withPriceCount">-</div>
+              <div class="lbl">With Price</div>
+            </div>
+          </div>
+        </div>
+
+        {# ── Search Bar ── #}
+        {% if profiles|length > 0 %}
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+          <div class="search-box">
+            <span class="icon"><i class="fa-solid fa-search"></i></span>
+            <input type="text" class="form-control" id="profileSearch" placeholder="Search profiles..." autocomplete="off">
+          </div>
+          <div class="text-muted small fw-semibold">
+            <span id="visibleCount">{{ profiles|length }}</span> profiles
+          </div>
+        </div>
+        {% endif %}
+
+        {# ── Profiles Table ── #}
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-0">
+            {% if profiles|length > 0 %}
+            <div class="table-responsive">
+              <table class="table profile-table mb-0" id="profileTable">
+                <thead>
+                  <tr>
+                    <th style="width: 44px;">#</th>
+                    <th>Profile Name</th>
+                    <th>Rate Limit</th>
+                    <th>Shared</th>
+                    <th>Validity</th>
+                    <th>Price</th>
+                    <th>Pool</th>
+                    <th style="width: 90px;" class="text-end">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for p in profiles %}
+                  <tr>
+                    <td data-label="#">
+                      <span class="text-muted fw-semibold">{{ loop.index }}</span>
+                    </td>
+                    <td data-label="Name">
+                      <div class="profile-name">
+                        <span class="dot"></span>
+                        {{ p.name }}
+                      </div>
+                    </td>
+                    <td data-label="Rate Limit">
+                      {% if p['rate-limit'] is defined and p['rate-limit'] %}
+                        <span class="tag">
+                          <i class="fa-solid fa-gauge-high" style="font-size:.65rem"></i>
+                          {{ p['rate-limit'] }}
+                        </span>
+                      {% else %}
+                        <span class="text-muted" style="font-size:.8rem">—</span>
+                      {% endif %}
+                    </td>
+                    <td data-label="Shared">
+                      {% if p['shared-users'] is defined and p['shared-users'] %}
+                        <span class="tag tag-purple">
+                          <i class="fa-solid fa-users" style="font-size:.6rem"></i>
+                          {{ p['shared-users'] }}
+                        </span>
+                      {% else %}
+                        <span class="text-muted" style="font-size:.8rem">1</span>
+                      {% endif %}
+                    </td>
+                    <td data-label="Validity">
+                      {% if p._validity %}
+                        <span class="tag tag-amber">
+                          <i class="fa-solid fa-clock" style="font-size:.6rem"></i>
+                          {{ p._validity }}
+                        </span>
+                      {% else %}
+                        <span class="text-muted" style="font-size:.8rem">—</span>
+                      {% endif %}
+                    </td>
+                    <td data-label="Price">
+                      {% if p._sprice %}
+                        <span class="tag tag-green">
+                          <i class="fa-solid fa-money-bill" style="font-size:.6rem"></i>
+                          {{ currency }} {{ p._sprice }}
+                        </span>
+                      {% elif p._price %}
+                        <span class="tag tag-green">
+                          {{ currency }} {{ p._price }}
+                        </span>
+                      {% else %}
+                        <span class="text-muted" style="font-size:.8rem">—</span>
+                      {% endif %}
+                    </td>
+                    <td data-label="Pool">
+                      {% if p['address-pool'] is defined and p['address-pool'] and p['address-pool'] != 'none' %}
+                        <span class="tag" style="font-size:.7rem">{{ p['address-pool'] }}</span>
+                      {% else %}
+                        <span class="text-muted" style="font-size:.8rem">—</span>
+                      {% endif %}
+                    </td>
+                    <td data-label="" class="text-end">
+                      <a class="edit-btn"
+                         href="{{ url_for('admin.hotspot_profile_edit', profile_name=p.name) }}">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <span class="d-none d-md-inline">Edit</span>
+                      </a>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="empty-profiles">
+              <div class="icon-wrap">
+                <i class="fa-solid fa-layer-group"></i>
+              </div>
+              <h5>No Profiles Found</h5>
+              <p>This router doesn't have any hotspot user profiles yet.</p>
+              <a class="btn btn-sm btn-primary fw-bold" href="{{ url_for('admin.hotspot_profile_add') }}">
+                <i class="fa-solid fa-plus me-1"></i> Create First Profile
+              </a>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+      <script>
+        // Stats count
+        document.addEventListener('DOMContentLoaded', function() {
+          const rows = document.querySelectorAll('#profileTable tbody tr');
+          let rate = 0, validity = 0, price = 0;
+          rows.forEach(r => {
+            const cells = r.querySelectorAll('td');
+            if (cells[2] && cells[2].querySelector('.tag')) rate++;
+            if (cells[4] && cells[4].querySelector('.tag-amber')) validity++;
+            if (cells[5] && cells[5].querySelector('.tag-green')) price++;
+          });
+          const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+          el('withRateCount', rate);
+          el('withValidityCount', validity);
+          el('withPriceCount', price);
+        });
+
+        // Search
+        const searchInput = document.getElementById('profileSearch');
+        if (searchInput) {
+          searchInput.addEventListener('input', function() {
+            const q = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#profileTable tbody tr');
+            let vis = 0;
+            rows.forEach(r => {
+              const match = r.textContent.toLowerCase().includes(q);
+              r.style.display = match ? '' : 'none';
+              if (match) vis++;
+            });
+            const vc = document.getElementById('visibleCount');
+            if (vc) vc.textContent = vis;
+          });
+        }
+
+        // Navbar scroll
+        document.addEventListener("scroll", function () {
+          const nav = document.querySelector(".navbar");
+          if (!nav) return;
+          if (window.scrollY > 10) nav.classList.add("scrolled");
+          else nav.classList.remove("scrolled");
+        });
+
+        function refreshAllProfiles() {
+          const btn = document.getElementById('refreshProfilesBtn');
+          if (!confirm('Re-push on-login script and expiry scheduler to ALL profiles on this router?\n\nThis fixes "expired date not added" and "script not added" issues.')) return;
+          btn.disabled = true;
+          btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Refreshing...';
+          fetch('{{ url_for("admin.refresh_all_profiles", router_id=router.id) }}', {
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+          })
+          .then(r => r.json())
+          .then(d => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-rotate-right me-1"></i> Refresh Scripts';
+            if (d.ok) {
+              const msg = `Updated ${d.updated.length} profile(s)` + (d.failed.length ? `, ${d.failed.length} failed` : '');
+              if (window.showToast) showToast('success', 'Profiles Refreshed', msg);
+              else alert(msg);
+            } else {
+              if (window.showToast) showToast('danger', 'Error', d.error || 'Failed');
+              else alert('Error: ' + (d.error || 'Failed'));
+            }
+          })
+          .catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-rotate-right me-1"></i> Refresh Scripts';
+            if (window.showToast) showToast('danger', 'Error', 'Network error');
+          });
+        }
+      </script>
+
+    </main>
+  </div>
+
+</body>
+</html>

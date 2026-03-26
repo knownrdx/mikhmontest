@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template Editor — {{ BRAND_NAME }}</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_layout.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/material.min.css">
+    <style>
+      .tpl-toolbar {
+        display: flex; flex-wrap: wrap; gap: 8px;
+        align-items: center; justify-content: space-between;
+        padding: 12px 16px;
+        background: var(--card, #1e293b);
+        border-bottom: 1px solid var(--border, rgba(255,255,255,.06));
+        position: sticky; top: 0; z-index: 10;
+      }
+      .tpl-toolbar .btn { font-size: .8rem; padding: 6px 14px; }
+      .tpl-toolbar select { font-size: .8rem; max-width: 160px; }
+
+      .tpl-layout {
+        display: flex; flex-direction: row; height: calc(100vh - 130px); min-height: 400px;
+      }
+      .tpl-editor { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+      .tpl-preview {
+        width: 360px; min-width: 300px;
+        border-left: 1px solid var(--border, rgba(255,255,255,.06));
+        display: flex; flex-direction: column;
+        overflow-y: auto; padding: 12px;
+        background: rgba(0,0,0,.15);
+      }
+      .tpl-editor .CodeMirror { flex: 1; height: auto !important; font-size: .85rem; }
+
+      .var-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+      .var-badge {
+        display: inline-block; padding: 2px 8px; border-radius: 6px;
+        background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.2);
+        color: var(--accent, #3b82f6); font-size: .7rem; font-weight: 600;
+        cursor: pointer; transition: all .2s;
+      }
+      .var-badge:hover { background: rgba(59,130,246,.2); transform: scale(1.05); }
+      .var-badge.new-var { background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.3); color: #10b981; }
+
+      #previewArea {
+        background: #fff; border-radius: 8px; padding: 12px;
+        color: #000; min-height: 100px;
+      }
+
+      .logo-section {
+        background: var(--surface2, rgba(255,255,255,.04));
+        border: 1px solid var(--border, rgba(255,255,255,.08));
+        border-radius: 10px; padding: 12px; margin-bottom: 12px;
+      }
+      .logo-section h6 { font-size: .78rem; font-weight: 700; margin-bottom: 8px; }
+      .logo-router-item {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.04);
+        font-size: .75rem;
+      }
+      .logo-router-item:last-child { border-bottom: none; }
+
+      /* Mobile: stack vertically */
+      @media (max-width: 768px) {
+        .tpl-layout { flex-direction: column; height: auto; }
+        .tpl-editor { min-height: 300px; }
+        .tpl-preview { width: 100%; min-width: 0; border-left: none; border-top: 1px solid var(--border, rgba(255,255,255,.06)); }
+        .tpl-toolbar { padding: 8px 10px; }
+        .tpl-toolbar .btn { font-size: .72rem; padding: 5px 10px; }
+      }
+    </style>
+</head>
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+
+{% if ui_navbar %}
+  {% include 'partials/navbar.html' %}
+  {% include "partials/breadcrumbs.html" %}
+{% endif %}
+
+{% if ui_sidebar %}
+<div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="appSidebarOffcanvas">
+  <div class="offcanvas-header border-bottom">
+    <h6 class="offcanvas-title">Menu</h6>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body p-0">{% include 'partials/sidebar_auto.html' %}</div>
+</div>
+{% endif %}
+
+<div class="app-shell d-flex">
+  {% if ui_sidebar %}
+  <aside class="sidebar d-none d-lg-block">{% include 'partials/sidebar_auto.html' %}</aside>
+  {% endif %}
+  <main class="main" style="padding:0;">
+
+    <!-- Toolbar -->
+    <div class="tpl-toolbar">
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="button" class="btn btn-primary btn-sm fw-bold" onclick="save()">
+          <i class="fa-solid fa-save me-1"></i>Save
+        </button>
+        <button type="button" class="btn btn-success btn-sm fw-bold" onclick="updatePreview()">
+          <i class="fa-solid fa-refresh me-1"></i>Preview
+        </button>
+      </div>
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+        <label class="small text-muted fw-bold mb-0" style="font-size:.72rem;">Load Preset:</label>
+        <select class="form-select form-select-sm bg-body text-body border" id="templateSelect"
+                onchange="if(this.value) location.href='?load=1&template='+this.value">
+          <option value="">— Select —</option>
+          {% for p in presets %}
+          <option value="{{ p }}" {% if selected == p %}selected{% endif %}>
+            {% if p == 'standard' %}Standard (220px)
+            {% elif p == 'standard_with_profile' %}Standard + Profile (220px)
+            {% elif p == 'small' %}Small (160px)
+            {% elif p == 'thermal' %}Thermal (180px)
+            {% else %}{{ p|replace('_',' ')|title }}{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+        <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-outline-danger btn-sm">
+          <i class="fa-solid fa-xmark me-1"></i><span class="d-none d-sm-inline">Exit</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Layout: Editor + Preview -->
+    <div class="tpl-layout">
+
+      <!-- Code Editor -->
+      <div class="tpl-editor">
+        <form id="tplForm" method="POST" style="display:flex;flex-direction:column;flex:1;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <textarea id="editor" name="template_html">{{ template_content }}</textarea>
+        </form>
+      </div>
+
+      <!-- Preview Panel -->
+      <div class="tpl-preview">
+
+        {# ── Variables Section ── #}
+        <h6 class="small fw-bold mb-2" style="color:var(--accent);">
+          <i class="fa-solid fa-code me-1"></i>Variables <span class="text-muted">(click to insert)</span>
+        </h6>
+        <div class="var-badges">
+          <div class="var-badge" onclick="insertVar('hotspotname')">hotspotname</div>
+          <div class="var-badge" onclick="insertVar('username')">username</div>
+          <div class="var-badge" onclick="insertVar('password')">password</div>
+          <div class="var-badge" onclick="insertVar('validity')">validity</div>
+          <div class="var-badge" onclick="insertVar('timelimit')">timelimit</div>
+          <div class="var-badge" onclick="insertVar('datalimit')">datalimit</div>
+          <div class="var-badge" onclick="insertVar('price')">price</div>
+          <div class="var-badge" onclick="insertVar('profile')">profile</div>
+          <div class="var-badge" onclick="insertVar('dnsname')">dnsname</div>
+          <div class="var-badge" onclick="insertVar('num')">num</div>
+          <div class="var-badge" onclick="insertVar('date')">date</div>
+          <div class="var-badge" onclick="insertVar('time')">time</div>
+          <div class="var-badge" onclick="insertVar('router_name')">router_name</div>
+          <div class="var-badge" onclick="insertVar('comment')">comment</div>
+          <div class="var-badge" onclick="insertVar('usermode')">usermode</div>
+          <div class="var-badge new-var" onclick="insertLogoTag()" title="Inserts an <img> tag with the router logo">logo</div>
+        </div>
+
+        <div class="text-muted mb-3" style="font-size:.62rem;">
+          <i class="fa-solid fa-info-circle me-1"></i>
+          <b>logo</b> inserts: <code style="font-size:.6rem;">&lt;img src="&#123;&#123;logo&#125;&#125;" style="height:40px;"&gt;</code>
+          — your template HTML is rendered exactly as-is in the PDF. Edit freely!
+        </div>
+
+        {# ── Logo Management Section ── #}
+        <div class="logo-section">
+          <h6><i class="fa-solid fa-image me-1" style="color:#8b5cf6;"></i>Logo Management</h6>
+          <div class="text-muted mb-2" style="font-size:.65rem;">
+            Site logo is used by default. Upload a custom logo per router to override.
+          </div>
+
+          {# Site logo preview #}
+          <div class="d-flex align-items-center gap-2 mb-2 p-2" style="background:rgba(255,255,255,.06);border-radius:8px;">
+            {% if site_logo_uri %}
+            <img src="{{ site_logo_uri }}" style="height:30px;border-radius:4px;" alt="Site logo">
+            {% else %}
+            <span style="font-size:.7rem;color:#94a3b8;">No site logo found</span>
+            {% endif %}
+            <span style="font-size:.7rem;font-weight:600;color:var(--muted);">Site Logo (default)</span>
+          </div>
+
+          {# Per-router logo upload #}
+          {% if all_routers %}
+          <div style="max-height:200px;overflow-y:auto;">
+            {% for r in all_routers %}
+            <div class="logo-router-item">
+              <div class="d-flex align-items-center gap-2">
+                <i class="fa-solid fa-server" style="font-size:.55rem;color:#06b6d4;"></i>
+                <span class="fw-bold">{{ r.name }}</span>
+                {% if router_logos.get(r.id) %}
+                  <span class="badge" style="font-size:.55rem;background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.3);">Custom</span>
+                {% endif %}
+              </div>
+              <div class="d-flex gap-1">
+                {% if router_logos.get(r.id) %}
+                  <a href="{{ url_for('admin.delete_router_logo', router_id=r.id) }}" class="btn btn-outline-danger" style="font-size:.6rem;padding:2px 6px;border-radius:5px;" onclick="return confirm('Remove custom logo?')" title="Remove custom logo">
+                    <i class="fa-solid fa-trash"></i>
+                  </a>
+                {% endif %}
+                <button class="btn btn-outline-primary" style="font-size:.6rem;padding:2px 6px;border-radius:5px;" onclick="document.getElementById('logoFile_{{ r.id }}').click()" title="Upload logo">
+                  <i class="fa-solid fa-upload"></i>
+                </button>
+                <form action="{{ url_for('admin.upload_router_logo') }}" method="POST" enctype="multipart/form-data" style="display:none;" id="logoForm_{{ r.id }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="router_id" value="{{ r.id }}">
+                  <input type="file" name="logo_file" id="logoFile_{{ r.id }}" accept="image/*" onchange="document.getElementById('logoForm_{{ r.id }}').submit()">
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="text-muted" style="font-size:.7rem;">No routers found.</div>
+          {% endif %}
+        </div>
+
+        {# ── Live Preview ── #}
+        <h6 class="small fw-bold mb-2" style="color:#e2e8f0;">
+          <i class="fa-solid fa-eye me-1"></i>Live Preview
+        </h6>
+        <div id="previewArea"></div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/xml/xml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+var editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
+    lineNumbers: true, mode: "xml", theme: "material", lineWrapping: true
+});
+editor.on("change", function() { updatePreview(); });
+
+// Site logo data URI for preview
+var SITE_LOGO = {{ site_logo_uri|tojson }};
+
+function updatePreview() {
+    let code = editor.getValue();
+    const mock = {
+        "{% raw %}{{hotspotname}}{% endraw %}": "My Hotspot",
+        "{% raw %}{{username}}{% endraw %}": "user123",
+        "{% raw %}{{password}}{% endraw %}": "pass123",
+        "{% raw %}{{validity}}{% endraw %}": "30 Days",
+        "{% raw %}{{timelimit}}{% endraw %}": "1 Hour",
+        "{% raw %}{{datalimit}}{% endraw %}": "500 MB",
+        "{% raw %}{{price}}{% endraw %}": "10.00",
+        "{% raw %}{{profile}}{% endraw %}": "Premium-30Day",
+        "{% raw %}{{dnsname}}{% endraw %}": "hotspot.net",
+        "{% raw %}{{num}}{% endraw %}": "1",
+        "{% raw %}{{date}}{% endraw %}": "25-Mar-2026",
+        "{% raw %}{{time}}{% endraw %}": "02:30 PM",
+        "{% raw %}{{router_name}}{% endraw %}": "Main Router",
+        "{% raw %}{{logo}}{% endraw %}": SITE_LOGO,
+        "{% raw %}{{qrcode}}{% endraw %}": ""
+    };
+    {% raw %}
+    code = code.replace(/\{%\s*if\s+usermode\s*==\s*["']vc["']\s*%\}([\s\S]*?)\{%\s*else\s*%\}([\s\S]*?)\{%\s*endif\s*%\}/g, '$1');
+    code = code.replace(/\{%[\s\S]*?%\}/g, '');
+    {% endraw %}
+    for (let key in mock) {
+        code = code.replace(new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), mock[key]);
+    }
+    document.getElementById("previewArea").innerHTML = '<div>' + code + '</div>';
+}
+
+function save() { document.getElementById("tplForm").submit(); }
+
+// Insert variable at cursor position in CodeMirror
+function insertVar(varName) {
+    var text = '{% raw %}{{{% endraw %}' + varName + '{% raw %}}}{% endraw %}';
+    var doc = editor.getDoc();
+    var cursor = doc.getCursor();
+    doc.replaceRange(text, cursor);
+    editor.focus();
+}
+
+// Insert a full logo img tag
+function insertLogoTag() {
+    var text = '<img src="{% raw %}{{logo}}{% endraw %}" style="height:40px;" alt="Logo">';
+    var doc = editor.getDoc();
+    var cursor = doc.getCursor();
+    doc.replaceRange(text, cursor);
+    editor.focus();
+}
+
+window.onload = () => setTimeout(updatePreview, 300);
+</script>
+
+</body>
+</html>

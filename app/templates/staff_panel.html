@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sub Admin Dashboard — {{ BRAND_NAME }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_layout.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_panel.css') }}">
+  <script>
+    /* Apply saved theme immediately to prevent FOUC */
+    (function(){var t=localStorage.getItem('ui_theme')||localStorage.getItem('admin_theme')||localStorage.getItem('user-theme')||'light';document.documentElement.setAttribute('data-bs-theme',t);if(t==='dark')document.documentElement.classList.add('theme-dark');})();
+  </script>
+  <style>
+    :root { --accent: {{ BRAND_ACCENT|default('#2563eb') }}; --rc: 16px; --ri: 12px; --sc: 0 2px 12px rgba(0,0,0,.04); }
+
+    .p-card { border-radius: var(--rc); border: 1px solid var(--border,rgba(0,0,0,.06)); background: var(--surface,#fff); box-shadow: var(--sc); overflow: hidden; transition: box-shadow .25s; }
+    .p-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.07); }
+    .p-card-head { padding: 14px 18px; border-bottom: 1px solid var(--border,rgba(0,0,0,.06)); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .p-card-body { padding: 16px 18px; }
+    .p-card-head-title { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: .9rem; }
+    .ph-icon { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: .8rem; flex-shrink: 0; }
+
+    /* Stat cards */
+    .stat-card { border-radius: 16px; border: 1px solid var(--border,rgba(0,0,0,.06)); background: var(--surface,#fff); box-shadow: 0 1px 8px rgba(0,0,0,.03); padding: 16px 18px; display: flex; align-items: center; gap: 14px; transition: all .25s cubic-bezier(.4,0,.2,1); position: relative; overflow: hidden; }
+    .stat-card::after { content: ''; position: absolute; top: 0; right: 0; width: 60px; height: 60px; border-radius: 50%; opacity: .04; transform: translate(20px, -20px); }
+    .stat-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,.1); transform: translateY(-2px); }
+    .stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: .95rem; flex-shrink: 0; }
+    .stat-value { font-size: 1.55rem; font-weight: 800; line-height: 1; color: var(--text); letter-spacing: -.02em; }
+    .stat-label { font-size: .6rem; letter-spacing: .7px; text-transform: uppercase; color: var(--muted,#64748b); margin-bottom: 2px; font-weight: 700; }
+    .stat-sub { font-size: .66rem; color: var(--muted,#94a3b8); margin-top: 3px; }
+
+    /* Progress */
+    .prog { height: 4px; border-radius: 3px; background: var(--border,rgba(0,0,0,.06)); margin-top: 5px; }
+    .prog-fill { height: 100%; border-radius: 3px; transition: width .4s ease; }
+
+    /* Table helpers */
+    .p-badge { font-size: .57rem; padding: 2px 8px; border-radius: 20px; font-weight: 700; white-space: nowrap; line-height: 1.6; }
+    .qa { border-radius: 8px; font-size: .72rem; padding: 4px 10px; font-weight: 700; transition: all .15s; }
+    .qa:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+    .r-chip { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 12px; margin-bottom: 6px; background: var(--surface2); border: 1px solid var(--border,rgba(0,0,0,.05)); gap: 10px; transition: all .2s; }
+    .r-chip:hover { background: var(--surface); box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+    .data-table th { font-size: .62rem; letter-spacing: .6px; text-transform: uppercase; font-weight: 700; color: var(--muted,#64748b); padding: 10px 12px; white-space: nowrap; }
+    .data-table td { vertical-align: middle; padding: 10px 12px; font-size: .83rem; color: var(--text); }
+    .data-table tbody tr { transition: background .15s; }
+    .data-table tbody tr:hover { background: var(--surface2, rgba(0,0,0,.015)) !important; }
+
+    /* Quick action grid */
+    .qa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .qa-action { border-radius: 12px; padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; font-size: .75rem; font-weight: 700; transition: all .2s; border: 1px solid; text-align: center; }
+    .qa-action:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.1); }
+    .qa-action i { font-size: 1.05rem; }
+
+    /* Router pill */
+    .router-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; background: rgba(37,99,235,.07); border: 1px solid rgba(37,99,235,.18); font-size: .78rem; font-weight: 600; color: var(--accent,#2563eb); cursor: pointer; transition: .15s; text-decoration: none; }
+    .router-pill:hover { background: rgba(37,99,235,.12); color: var(--accent,#2563eb); }
+
+    /* Log search */
+    .lf-pill { font-size: .67rem; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border,rgba(0,0,0,.1)); background: transparent; cursor: pointer; font-weight: 700; transition: all .2s; color: var(--muted,#64748b); }
+    .lf-pill:hover { background: rgba(99,102,241,.06); border-color: rgba(99,102,241,.2); color: #4f46e5; transform: translateY(-1px); }
+    .lf-pill.active { background: rgba(99,102,241,.1); border-color: rgba(99,102,241,.3); color: #4f46e5; box-shadow: 0 2px 8px rgba(99,102,241,.15); }
+
+    .fl { font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .7px; color: var(--muted,#94a3b8); margin-bottom: 8px; display: block; }
+
+    /* Page header */
+    .page-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding: 16px 20px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border, rgba(0,0,0,.06)); box-shadow: 0 1px 6px rgba(0,0,0,.03); }
+    .page-header h5 { margin: 0; font-weight: 800; font-size: 1.05rem; letter-spacing: -.01em; }
+
+    @media (max-width: 767px) {
+      .stat-grid { grid-template-columns: 1fr 1fr !important; }
+      .rcard-grid { grid-template-columns: 1fr 1fr !important; }
+      .hide-xs { display: none !important; }
+      .p-card-body { padding: 12px 14px; }
+      .p-card-head { padding: 12px 14px; }
+      .stat-card { padding: 12px 14px; }
+      .stat-value { font-size: 1.25rem; }
+      .page-header { padding: 12px 14px; border-radius: 12px; }
+      .page-header h5 { font-size: .92rem; }
+    }
+  </style>
+</head>
+
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+{% if ui_navbar %}{% include 'partials/navbar.html' %}{% endif %}
+
+{% if ui_sidebar %}
+<div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="appSidebarOffcanvas">
+  <div class="offcanvas-header border-bottom"><h6 class="offcanvas-title fw-bold">Menu</h6><button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button></div>
+  <div class="offcanvas-body p-0">{% include 'partials/sidebar_auto.html' %}</div>
+</div>
+{% endif %}
+
+<div class="app-shell d-flex">
+  {% if ui_sidebar %}
+  <aside class="sidebar d-none d-lg-block">{% include 'partials/sidebar_auto.html' %}</aside>
+  {% endif %}
+
+  <main class="main">
+    <div class="container-fluid px-3 px-md-4 py-3">
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }} alert-dismissible fade show small mb-3">{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+        {% endfor %}{% endif %}
+      {% endwith %}
+
+      {# ══ PAGE HEADER ══ #}
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+        <div>
+          <h5 class="fw-bold mb-0" style="font-size:1.1rem;">
+            <i class="fa-solid fa-user-gear me-2" style="color:var(--accent,#2563eb);"></i>Sub Admin Dashboard
+          </h5>
+          <div class="text-muted" style="font-size:.72rem;margin-top:2px;">
+            <i class="fa-solid fa-user me-1" style="font-size:.58rem;"></i>{{ user_data.username if user_data else '' }}
+          </div>
+        </div>
+        {# Router switcher pill #}
+        {% if all_routers %}
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="text-muted" style="font-size:.72rem;">Router:</span>
+          {% if all_routers|length == 1 %}
+            <span class="router-pill">
+              <span style="width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0;"></span>{{ all_routers[0].name }}
+            </span>
+          {% else %}
+            <div class="dropdown">
+              <button class="router-pill dropdown-toggle border-0" data-bs-toggle="dropdown">
+                <span style="width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0;"></span>
+                {{ selected_router.name if selected_router else 'Select Router' }}
+              </button>
+              <ul class="dropdown-menu shadow" style="min-width:180px;border-radius:12px;font-size:.8rem;">
+                <li><h6 class="dropdown-header" style="font-size:.62rem;letter-spacing:.5px;text-transform:uppercase;">Switch Router</h6></li>
+                {% for r in all_routers %}
+                <li>
+                  <a class="dropdown-item d-flex align-items-center justify-content-between py-2 {% if selected_router and r.id == selected_router.id %}active{% endif %}"
+                     href="{{ url_for('dashboard.dashboard', router_id=r.id) }}">
+                    {{ r.name }}
+                    {% if selected_router and r.id == selected_router.id %}<i class="fa-solid fa-check text-success" style="font-size:.65rem;"></i>{% endif %}
+                  </a>
+                </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+
+      {# ══ STAT CARDS ══ #}
+      <div class="stat-grid mb-4" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(37,99,235,.1);"><i class="fa-solid fa-users" style="color:#2563eb;"></i></div>
+          <div><div class="stat-label">My Users</div><div class="stat-value">{{ users|length }}</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(16,185,129,.1);"><i class="fa-solid fa-circle-dot" style="color:#10b981;"></i></div>
+          <div><div class="stat-label">Active</div><div class="stat-value">{{ data.active_count if data else '—' }}</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(245,158,11,.1);"><i class="fa-solid fa-users-line" style="color:#f59e0b;"></i></div>
+          <div><div class="stat-label">HS Users</div><div class="stat-value">{{ data.total_users if data else '—' }}</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(99,102,241,.1);"><i class="fa-solid fa-server" style="color:#6366f1;"></i></div>
+          <div><div class="stat-label">Router</div><div class="fw-bold text-truncate" style="font-size:.85rem;max-width:90px;">{{ selected_router.name if selected_router else '—' }}</div></div>
+        </div>
+      </div>
+
+      {# ══ ROUTER INFO CAROUSEL ══ #}
+      {% if all_routers %}
+      {% set sr_list = all_routers %}
+      <div class="mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="d-flex align-items-center gap-2 fw-semibold" style="font-size:.85rem;">
+            <i class="fa-solid fa-server" style="color:#06b6d4;"></i>Router Info
+            <span class="badge bg-secondary rounded-pill" style="font-size:.6rem;">{{ sr_list|length }}</span>
+            <span id="srLabel" class="fw-normal text-muted" style="font-size:.72rem;">1 / {{ sr_list|length }}</span>
+          </div>
+          {% if sr_list|length > 1 %}
+          <div class="d-flex gap-1">
+            <button onclick="srPrev()" id="srBtnPrev" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;width:28px;height:28px;padding:0;" disabled><i class="fa-solid fa-chevron-left" style="font-size:.6rem;"></i></button>
+            <button onclick="srNext()" id="srBtnNext" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;width:28px;height:28px;padding:0;"><i class="fa-solid fa-chevron-right" style="font-size:.6rem;"></i></button>
+          </div>
+          {% endif %}
+        </div>
+        <div style="overflow:hidden;">
+          <div id="srSlider" style="display:flex;transition:transform .35s cubic-bezier(.4,0,.2,1);">
+            {% for r in sr_list %}
+            {% set sys = data.system if (selected_router and r.id == selected_router.id and data) else {} %}
+            {% set is_sel = selected_router and r.id == selected_router.id %}
+            {% set fm = sys.get('free-memory',0)|int %}
+            {% set tm = sys.get('total-memory',1)|int %}
+            {% set mem_pct = ((1 - fm/tm)*100)|round|int if tm else 0 %}
+            {% set cpu = sys.get('cpu-load','0')|int %}
+            <div class="sr-card flex-shrink-0 w-100 p-card" data-router-name="{{ r.name }}" style="{% if is_sel %}border-color:rgba(37,99,235,.25);{% else %}border-color:var(--border,rgba(0,0,0,.07));{% endif %}">
+              <div class="p-card-head" style="background:{% if is_sel %}linear-gradient(135deg,rgba(37,99,235,.05),rgba(16,185,129,.02)){% else %}transparent{% endif %};">
+                <div>
+                  <div class="fw-bold" style="font-size:.95rem;">{{ r.name }}</div>
+                  <div class="text-muted" style="font-size:.7rem;margin-top:1px;">
+                    {% if is_sel %}
+                      <i class="fa-solid fa-circle text-success me-1" style="font-size:.47rem;"></i>Active
+                    {% else %}
+                      <a href="{{ url_for('dashboard.dashboard', router_id=r.id) }}" style="color:var(--accent,#2563eb);text-decoration:none;font-weight:600;font-size:.7rem;">
+                        <i class="fa-solid fa-arrow-right-arrow-left me-1" style="font-size:.57rem;"></i>Switch
+                      </a>
+                    {% endif %}
+                  </div>
+                </div>
+                {% if is_sel %}
+                <span style="font-size:.67rem;padding:3px 10px;border-radius:20px;background:rgba(37,99,235,.08);color:#1d4ed8;border:1px solid rgba(37,99,235,.18);font-weight:600;">
+                  <i class="fa-solid fa-check me-1" style="font-size:.53rem;"></i>Selected
+                </span>
+                {% else %}
+                <a href="{{ url_for('dashboard.dashboard', router_id=r.id) }}" class="btn btn-sm" style="border-radius:8px;font-size:.7rem;background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.15);color:#2563eb;">Switch</a>
+                {% endif %}
+              </div>
+              {% if is_sel and sys %}
+              <div class="rcard-grid p-3" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+                <div style="background:var(--surface2);border-radius:var(--ri);padding:10px;"><div class="stat-label">CPU</div><div class="fw-bold" style="font-size:1.05rem;color:{% if cpu>80 %}#dc2626{% elif cpu>50 %}#d97706{% else %}#16a34a{% endif %};">{{ cpu }}%</div><div class="prog"><div class="prog-fill" style="width:{{ cpu }}%;background:{% if cpu>80 %}#dc2626{% elif cpu>50 %}#d97706{% else %}#16a34a{% endif %};"></div></div></div>
+                <div style="background:var(--surface2);border-radius:var(--ri);padding:10px;"><div class="stat-label">RAM</div><div class="fw-bold" style="font-size:1.05rem;color:#2563eb;">{{ mem_pct }}%</div><div class="prog"><div class="prog-fill" style="width:{{ mem_pct }}%;background:#2563eb;"></div></div><div style="font-size:.57rem;color:#94a3b8;margin-top:3px;">{{ fm//1024//1024 }}MB free</div></div>
+                <div style="background:var(--surface2);border-radius:var(--ri);padding:10px;"><div class="stat-label">Active</div><div class="fw-bold d-flex align-items-center gap-1" style="font-size:1.05rem;"><span style="width:6px;height:6px;border-radius:50%;background:#16a34a;display:inline-block;flex-shrink:0;"></span>{{ data.active_count if data else '—' }}</div></div>
+                <div style="background:var(--surface2);border-radius:var(--ri);padding:10px;overflow:hidden;"><div class="stat-label">Uptime</div><div class="fw-bold" style="font-size:.73rem;line-height:1.35;" title="{{ sys.get('uptime','') }}">{{ sys.get('uptime','—') }}</div></div>
+              </div>
+              {% if sys.get('board-name') or sys.get('version') %}
+              <div style="padding:0 16px 12px;display:flex;gap:5px;flex-wrap:wrap;">
+                {% if sys.get('board-name') %}<span style="font-size:.63rem;padding:2px 8px;border-radius:20px;background:rgba(99,102,241,.07);color:#4f46e5;border:1px solid rgba(99,102,241,.14);"><i class="fa-solid fa-microchip me-1" style="font-size:.52rem;"></i>{{ sys.get('board-name') }}</span>{% endif %}
+                {% if sys.get('version') %}<span style="font-size:.63rem;padding:2px 8px;border-radius:20px;background:rgba(16,185,129,.07);color:#065f46;border:1px solid rgba(16,185,129,.14);">v{{ sys.get('version') }}</span>{% endif %}
+              </div>
+              {% endif %}
+              {% else %}
+              <div style="padding:26px;text-align:center;color:#94a3b8;">
+                <i class="fa-solid fa-{% if is_sel %}plug-circle-xmark{% else %}arrow-pointer{% endif %}" style="font-size:1.5rem;opacity:.2;display:block;margin-bottom:7px;"></i>
+                <div style="font-size:.75rem;">{% if is_sel %}Cannot connect{% else %}Switch to see live info{% endif %}</div>
+              </div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% if sr_list|length > 1 %}
+        <div class="d-flex justify-content-center gap-1 mt-2" id="srDots">
+          {% for r in sr_list %}<div onclick="srGoTo({{ loop.index0 }})" class="sr-dot" style="height:5px;border-radius:3px;cursor:pointer;transition:.25s;background:{% if selected_router and r.id == selected_router.id %}var(--accent,#2563eb){% else %}rgba(0,0,0,.14){% endif %};width:{% if selected_router and r.id == selected_router.id %}16px{% else %}5px{% endif %};"></div>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      <script>
+      (function(){const sl=document.getElementById('srSlider');if(!sl)return;const tot={{ sr_list|length }};{% if selected_router %}const rids=[{% for r in sr_list %}'{{ r.id }}'{% if not loop.last %},{% endif %}{% endfor %}];{% endif %}let cur={% if selected_router %}Math.max(0,rids.indexOf('{{ selected_router.id }}')){% else %}0{% endif %};function gW(){return sl.parentElement.offsetWidth;}function go(i){cur=Math.max(0,Math.min(i,tot-1));sl.style.transform=`translateX(-${cur*gW()}px)`;const lb=document.getElementById('srLabel');if(lb)lb.textContent=`${cur+1} / ${tot}`;const bp=document.getElementById('srBtnPrev'),bn=document.getElementById('srBtnNext');if(bp)bp.disabled=cur===0;if(bn)bn.disabled=cur===tot-1;document.querySelectorAll('.sr-dot').forEach((d,j)=>{d.style.background=j===cur?'var(--accent,#2563eb)':'rgba(0,0,0,.14)';d.style.width=j===cur?'16px':'5px';});}go(cur);window.srNext=()=>go(cur+1);window.srPrev=()=>go(cur-1);window.srGoTo=i=>go(i);window.addEventListener('resize',()=>{sl.style.transition='none';go(cur);setTimeout(()=>sl.style.transition='transform .35s cubic-bezier(.4,0,.2,1)',50);});let tx=0;sl.addEventListener('touchstart',e=>tx=e.touches[0].clientX,{passive:true});sl.addEventListener('touchend',e=>{const d=tx-e.changedTouches[0].clientX;if(Math.abs(d)>40)go(cur+(d>0?1:-1));},{passive:true});})();
+      </script>
+      {% endif %}
+
+      {# ══ MAIN ROW: LEFT + RIGHT ══ #}
+      <div class="row g-3 mb-4">
+
+        {# ─── LEFT COLUMN ─── #}
+        <div class="col-xl-4 col-lg-5">
+
+          {# Quick Actions #}
+          {% if selected_router %}
+          <div class="p-card mb-3">
+            <div class="p-card-head">
+              <div class="p-card-head-title"><div class="ph-icon" style="background:rgba(245,158,11,.1);"><i class="fa-solid fa-bolt" style="color:#f59e0b;"></i></div>Quick Actions</div>
+              <span style="font-size:.68rem;padding:2px 8px;border-radius:20px;background:rgba(37,99,235,.07);color:#3b82f6;border:1px solid rgba(37,99,235,.14);">
+                <i class="fa-solid fa-circle me-1" style="font-size:.42rem;color:#16a34a;"></i>{{ selected_router.name }}
+              </span>
+            </div>
+            <div class="p-card-body">
+              <div class="qa-grid">
+                {% if can_generate %}
+                <a href="{{ url_for('admin.create_vouchers_page') }}" class="qa-action" style="color:#2563eb;background:rgba(37,99,235,.05);border-color:rgba(37,99,235,.18);"><i class="fa-solid fa-ticket"></i><span>Vouchers</span></a>
+                {% endif %}
+                {% if can_user_manage %}
+                <a href="{{ url_for('admin.hotspot_users') }}" class="qa-action" style="color:#059669;background:rgba(16,185,129,.05);border-color:rgba(16,185,129,.18);"><i class="fa-solid fa-users"></i><span>HS Users</span></a>
+                {% endif %}
+                {% if can_profiles %}
+                <a href="{{ url_for('admin.hotspot_profiles') }}" class="qa-action" style="color:#4f46e5;background:rgba(99,102,241,.05);border-color:rgba(99,102,241,.18);"><i class="fa-solid fa-layer-group"></i><span>Profiles</span></a>
+                {% endif %}
+                {% if can_reports %}
+                <a href="{{ url_for('admin.sales_report') }}" class="qa-action" style="color:#b45309;background:rgba(245,158,11,.05);border-color:rgba(245,158,11,.18);"><i class="fa-solid fa-chart-line"></i><span>Reports</span></a>
+                <a href="{{ url_for('admin.monitor_router') }}" class="qa-action" style="color:#b91c1c;background:rgba(239,68,68,.05);border-color:rgba(239,68,68,.18);"><i class="fa-solid fa-wave-square"></i><span>Monitor</span></a>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% else %}
+          <div class="p-card mb-3">
+            <div class="p-card-body text-center text-muted py-4">
+              <i class="fa-solid fa-server fa-2x mb-2 d-block opacity-20"></i>
+              <div style="font-size:.8rem;">Select a router above</div>
+            </div>
+          </div>
+          {% endif %}
+
+          {# Add New User #}
+          {% if can_user_manage %}
+          <div class="p-card mb-3" style="border-color:rgba(16,185,129,.2);">
+            <div class="p-card-head" style="background:rgba(16,185,129,.03);">
+              <div class="p-card-head-title"><div class="ph-icon" style="background:rgba(16,185,129,.1);"><i class="fa-solid fa-user-plus" style="color:#059669;"></i></div><span style="color:#059669;">Add New User</span></div>
+            </div>
+            <div class="p-card-body">
+              <form action="{{ url_for('admin.add_user') }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="row g-2 mb-2">
+                  <div class="col-6"><input type="text" name="u_name" class="form-control form-control-sm" placeholder="Username" required></div>
+                  <div class="col-6"><input type="password" name="u_pass" class="form-control form-control-sm" placeholder="Password" required></div>
+                </div>
+                <input type="email" name="u_email" class="form-control form-control-sm mb-2" placeholder="Email (optional)">
+                <input type="hidden" name="u_role" value="user">
+                <div class="mb-2">
+                  <label class="fl">Copy Router <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+                  <select name="copy_router_from" id="copyRouterFrom" class="form-select form-select-sm" onchange="onCopyRouterChange()">
+                    <option value="">— Enter manually —</option>
+                    {% for u in users if u.routers %}{% for r in u.routers %}<option value="{{ u._id }}|{{ r.id }}">{{ u.username }} → {{ r.name }}</option>{% endfor %}{% endfor %}
+                    {% if selected_router %}<option value="__self__|{{ selected_router.id }}" selected>My Router → {{ selected_router.name }}</option>{% endif %}
+                  </select>
+                </div>
+                <div id="manualRouterFields" style="display:none;">
+                  <div class="row g-2 mb-2">
+                    <div class="col-6"><input type="text" name="r_name" id="r_name" class="form-control form-control-sm" placeholder="Router Name"></div>
+                    <div class="col-6"><input type="text" name="r_ip" id="r_ip" class="form-control form-control-sm" placeholder="IP:Port"></div>
+                  </div>
+                  <div class="row g-2 mb-2">
+                    <div class="col-6"><input type="text" name="r_user" id="r_user" class="form-control form-control-sm" placeholder="API User"></div>
+                    <div class="col-6"><input type="password" name="r_pass" id="r_pass" class="form-control form-control-sm" placeholder="API Pass"></div>
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-success btn-sm w-100 fw-semibold" style="border-radius:8px;"><i class="fa-solid fa-plus me-1"></i>Save User</button>
+              </form>
+            </div>
+          </div>
+          {% endif %}
+
+        </div>
+
+        {# ─── RIGHT COLUMN — Users Table ─── #}
+        <div class="col-xl-8 col-lg-7">
+          <div class="p-card">
+            <div class="p-card-head">
+              <div class="p-card-head-title">
+                <div class="ph-icon" style="background:rgba(37,99,235,.08);"><i class="fa-solid fa-users" style="color:#2563eb;"></i></div>
+                My Users
+                <span class="badge bg-secondary rounded-pill" style="font-size:.58rem;font-weight:500;">{{ users|length }}</span>
+              </div>
+              <div class="d-flex gap-2 flex-wrap align-items-center">
+                <div class="input-group input-group-sm" style="max-width:185px;">
+                  <span class="input-group-text border-0 px-2" style="background:var(--surface2,#f1f5f9);"><i class="fa-solid fa-search" style="font-size:.68rem;color:#94a3b8;"></i></span>
+                  <input id="staffUsersSearch" type="text" class="form-control border-0 ps-1" style="background:var(--surface2,#f1f5f9);font-size:.78rem;" placeholder="Search…">
+                </div>
+                <select id="staffUsersPageSize" class="form-select form-select-sm" style="max-width:85px;font-size:.75rem;">
+                  <option value="10">10/page</option><option value="25">25/page</option><option value="50">50/page</option>
+                </select>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table id="staffUsersTable" class="table table-hover data-table mb-0">
+                <thead style="background:var(--surface2);">
+                  <tr><th class="px-3">User</th><th class="hide-xs">Routers</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                  {% for u in users %}
+                  <tr>
+                    <td class="px-3" style="min-width:140px;">
+                      <div class="fw-semibold" style="font-size:.86rem;">{{ u.username }}</div>
+                      <div class="mt-1 d-flex flex-wrap gap-1">
+                        {% if u.can_generate %}<span class="p-badge" style="background:rgba(37,99,235,.08);color:#1d4ed8;border:1px solid rgba(37,99,235,.18);">Voucher</span>{% endif %}
+                        {% if u.allow_reports %}<span class="p-badge" style="background:rgba(16,185,129,.08);color:#065f46;border:1px solid rgba(16,185,129,.18);">Reports</span>{% endif %}
+                        {% if u.allow_user_manage %}<span class="p-badge" style="background:rgba(99,102,241,.08);color:#4338ca;border:1px solid rgba(99,102,241,.18);">Users</span>{% endif %}
+                        {% if u.allow_profiles %}<span class="p-badge" style="background:rgba(245,158,11,.08);color:#92400e;border:1px solid rgba(245,158,11,.18);">Profiles</span>{% endif %}
+                        {% if u.allow_profile_edit %}<span class="p-badge" style="background:rgba(139,92,246,.08);color:#6d28d9;border:1px solid rgba(139,92,246,.18);">Profile Edit</span>{% endif %}
+                      </div>
+                    </td>
+                    <td class="hide-xs" style="min-width:200px;">
+                      {% for r in u.routers %}
+                      <div class="r-chip">
+                        <div style="min-width:0;flex:1;">
+                          <div class="fw-semibold text-truncate" style="font-size:.76rem;">{{ r.name }}</div>
+                          <div style="font-size:.62rem;margin-top:1px;"><span class="{% if r.status=='Online' %}text-success{% else %}text-danger{% endif %}">● {{ r.status or 'Unknown' }}</span></div>
+                        </div>
+                        <div class="d-flex gap-1 flex-wrap justify-content-end">
+                          {% if can_reports %}<a href="{{ url_for('admin.monitor_router') }}" class="qa btn btn-success btn-sm text-white">Monitor</a>{% endif %}
+                          {% if can_user_manage %}<a href="{{ url_for('admin.hotspot_users') }}" class="qa btn btn-outline-secondary btn-sm">Users</a>{% endif %}
+                          {% if can_profiles %}<a href="{{ url_for('admin.hotspot_profiles') }}" class="qa btn btn-outline-dark btn-sm">Profiles</a>{% endif %}
+                        </div>
+                      </div>
+                      {% else %}<span class="text-muted" style="font-size:.73rem;">No routers</span>{% endfor %}
+                    </td>
+                    <td style="min-width:110px;">
+                      <div class="d-flex flex-wrap gap-1">
+                        <a href="{{ url_for('admin.login_as_user', user_id=u._id) }}" class="qa btn btn-sm btn-outline-primary" title="Impersonate"><i class="fa-solid fa-right-to-bracket"></i></a>
+                        <button class="qa btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#permModal{{ u._id }}" title="Permissions"><i class="fa-solid fa-shield-halved"></i></button>
+                        <a href="{{ url_for('admin.ui_settings', user_id=u._id) }}" class="qa btn btn-sm btn-outline-secondary" title="UI Settings"><i class="fa-solid fa-desktop"></i></a>
+                        <a href="{{ url_for('admin.delete_user', id=u._id) }}" class="qa btn btn-sm btn-outline-danger" onclick="return confirm('Delete {{ u.username }}?')"><i class="fa-solid fa-trash"></i></a>
+                      </div>
+                      {# Permissions Modal #}
+                      <div class="modal fade" id="permModal{{ u._id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-sm"><form action="{{ url_for('admin.update_user_permission', user_id=u._id) }}" method="POST" class="modal-content">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <div class="modal-header py-2"><h6 class="modal-title fw-bold" style="font-size:.88rem;"><i class="fa-solid fa-shield-halved me-1 text-warning"></i>{{ u.username }} — Permissions</h6><button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button></div>
+                          <div class="modal-body">
+                            <input type="hidden" name="u_role" value="user">
+                            <div style="background:var(--surface2);border-radius:10px;padding:12px;">
+                              <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="fw-semibold" style="font-size:.82rem;"><i class="fa-solid fa-shield-halved me-1 text-secondary"></i>Permissions</span>
+                                <button type="submit" name="grant_all" value="1" class="btn btn-sm" style="font-size:.67rem;border-radius:7px;background:rgba(37,99,235,.08);color:#2563eb;border:1px solid rgba(37,99,235,.18);" onclick="this.form.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=true)"><i class="fa-solid fa-check-double me-1"></i>Grant All</button>
+                              </div>
+                              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="can_generate" id="gc{{ u._id }}" {% if u.can_generate %}checked{% endif %} {% if not can_generate %}disabled{% endif %}><label class="form-check-label small fw-semibold {% if not can_generate %}text-muted{% endif %}" for="gc{{ u._id }}">Voucher Generation</label></div>
+                              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="allow_reports" id="rc{{ u._id }}" {% if u.allow_reports %}checked{% endif %} {% if not can_reports %}disabled{% endif %}><label class="form-check-label small fw-semibold {% if not can_reports %}text-muted{% endif %}" for="rc{{ u._id }}">Reports &amp; Monitor</label></div>
+                              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="allow_user_manage" id="uc{{ u._id }}" {% if u.allow_user_manage %}checked{% endif %} {% if not can_user_manage %}disabled{% endif %}><label class="form-check-label small fw-semibold {% if not can_user_manage %}text-muted{% endif %}" for="uc{{ u._id }}">Users Management</label></div>
+                              <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="allow_profiles" id="pc{{ u._id }}" {% if u.allow_profiles %}checked{% endif %} {% if not can_profiles %}disabled{% endif %}><label class="form-check-label small fw-semibold {% if not can_profiles %}text-muted{% endif %}" for="pc{{ u._id }}">Profiles (View)</label></div>
+                              <div class="form-check"><input class="form-check-input" type="checkbox" name="allow_profile_edit" id="pe{{ u._id }}" {% if u.allow_profile_edit %}checked{% endif %} {% if not can_profile_edit %}disabled{% endif %}><label class="form-check-label small fw-semibold {% if not can_profile_edit %}text-muted{% endif %}" for="pe{{ u._id }}">Profiles (Add/Edit)</label></div>
+                            </div>
+                          </div>
+                          <div class="modal-footer py-2"><button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary btn-sm">Save</button></div>
+                        </form></div>
+                      </div>
+                    </td>
+                  </tr>
+                  {% else %}
+                  <tr><td colspan="3" class="text-center py-5 text-muted"><i class="fa-solid fa-users-slash fa-2x mb-2 d-block opacity-20"></i>No users yet</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              <div id="staffUsersPager" class="px-3 py-2"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>{# /row #}
+
+      {# ══ ACTIVITY LOGS ══ #}
+      <div class="p-card mb-4 log-table-wrap">
+        <div class="p-card-head flex-wrap gap-2">
+          <div class="p-card-head-title">
+            <div class="ph-icon" style="background:rgba(99,102,241,.1);"><i class="fa-solid fa-shield-halved" style="color:#6366f1;"></i></div>
+            Activity Logs
+            <span class="text-muted fw-normal" style="font-size:.68rem;">· Your and your users</span>
+          </div>
+          <input type="text" id="staffLogSearch" placeholder="Search…" class="form-control form-control-sm" style="width:150px;border-radius:10px;font-size:.76rem;font-weight:600;" oninput="filterStaffLogs()">
+        </div>
+
+        {# Desktop: table view #}
+        <div style="max-height:420px;overflow-y:auto;">
+          <table class="table table-hover mb-0" style="border-collapse:separate;border-spacing:0;">
+            <thead style="position:sticky;top:0;z-index:2;background:var(--surface2);backdrop-filter:blur(8px);">
+              <tr>
+                <th class="px-3 py-2 text-muted fw-bold" style="font-size:.6rem;letter-spacing:.7px;white-space:nowrap;border-bottom:2px solid var(--border);">TIME</th>
+                <th class="py-2 text-muted fw-bold" style="font-size:.6rem;letter-spacing:.7px;border-bottom:2px solid var(--border);">USER</th>
+                <th class="py-2 text-muted fw-bold" style="font-size:.6rem;letter-spacing:.7px;border-bottom:2px solid var(--border);">ACTION</th>
+                <th class="py-2 text-muted fw-bold hide-xs" style="font-size:.6rem;letter-spacing:.7px;border-bottom:2px solid var(--border);">DETAILS</th>
+              </tr>
+            </thead>
+            <tbody id="staffLogBody">
+              {% for log in staff_logs %}
+              {% set act = (log.action or '')|lower %}
+              {% if 'login' in act and 'fail' not in act %}{% set fc='login' %}
+              {% elif 'logout' in act %}{% set fc='logout' %}
+              {% elif 'voucher' in act or 'generate' in act %}{% set fc='voucher' %}
+              {% elif 'delete' in act %}{% set fc='delete' %}
+              {% elif 'mac' in act %}{% set fc='mac' %}
+              {% elif 'permission' in act %}{% set fc='permission' %}
+              {% elif 'create' in act %}{% set fc='create' %}
+              {% elif 'fail' in act or 'lock' in act %}{% set fc='fail' %}
+              {% else %}{% set fc='other' %}{% endif %}
+              <tr class="slog-row" style="font-size:.82rem;transition:background .15s;"
+                  data-user="{{ (log.username or '')|lower }}"
+                  data-action="{{ act }}"
+                  data-details="{{ (log.details or '')|lower }}">
+                <td class="px-3" style="white-space:nowrap;color:var(--muted);font-size:.68rem;font-family:'SF Mono','Fira Code',monospace;opacity:.7;">{{ log.timestamp }}</td>
+                <td>
+                  <span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px 9px;font-size:.68rem;font-weight:700;">
+                    {% if log.username == user_data.username %}<i class="fa-solid fa-star" style="font-size:.44rem;color:#f59e0b;"></i>
+                    {% else %}<i class="fa-solid fa-user" style="font-size:.44rem;opacity:.35;"></i>{% endif %}
+                    {{ log.username or '—' }}
+                  </span>
+                </td>
+                <td style="white-space:nowrap;">
+                  {% if 'login' in act and 'fail' not in act %}<span class="badge rounded-pill" style="background:rgba(34,197,94,.1);color:#15803d;border:1px solid rgba(34,197,94,.22);font-size:.6rem;"><i class="fa-solid fa-right-to-bracket me-1"></i>Login</span>
+                  {% elif 'logout' in act %}<span class="badge rounded-pill" style="background:rgba(100,116,139,.09);color:#475569;border:1px solid rgba(100,116,139,.18);font-size:.6rem;"><i class="fa-solid fa-right-from-bracket me-1"></i>Logout</span>
+                  {% elif 'voucher' in act or 'generate' in act %}<span class="badge rounded-pill" style="background:rgba(37,99,235,.09);color:#2563eb;border:1px solid rgba(37,99,235,.18);font-size:.6rem;"><i class="fa-solid fa-ticket me-1"></i>Voucher</span>
+                  {% elif 'bulk delete' in act %}<span class="badge rounded-pill" style="background:rgba(239,68,68,.12);color:#991b1b;border:1px solid rgba(239,68,68,.22);font-size:.6rem;"><i class="fa-solid fa-trash me-1"></i>Bulk Delete</span>
+                  {% elif 'delete' in act %}<span class="badge rounded-pill" style="background:rgba(239,68,68,.09);color:#b91c1c;border:1px solid rgba(239,68,68,.18);font-size:.6rem;"><i class="fa-solid fa-trash me-1"></i>Delete</span>
+                  {% elif 'mac' in act %}<span class="badge rounded-pill" style="background:rgba(245,158,11,.09);color:#b45309;border:1px solid rgba(245,158,11,.22);font-size:.6rem;"><i class="fa-solid fa-rotate-left me-1"></i>MAC Reset</span>
+                  {% elif 'permission' in act %}<span class="badge rounded-pill" style="background:rgba(245,158,11,.09);color:#92400e;border:1px solid rgba(245,158,11,.18);font-size:.6rem;"><i class="fa-solid fa-shield-halved me-1"></i>Permission</span>
+                  {% else %}<span class="badge rounded-pill" style="background:rgba(99,102,241,.09);color:#4f46e5;border:1px solid rgba(99,102,241,.18);font-size:.6rem;"><i class="fa-solid fa-circle-info me-1"></i>{{ log.action }}</span>{% endif %}
+                </td>
+                <td class="hide-xs" style="max-width:200px;"><span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.76rem;color:var(--muted);" title="{{ log.details or '' }}">{{ log.details or '—' }}</span></td>
+              </tr>
+              {% else %}
+              <tr><td colspan="4" class="text-center py-5 text-muted"><i class="fa-solid fa-inbox fa-2x mb-2 d-block opacity-20"></i>No activity yet</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {# Mobile: card view #}
+        <div class="log-mobile-cards" style="max-height:420px;overflow-y:auto;">
+          {% for log in staff_logs %}
+          {% set act = (log.action or '')|lower %}
+          {% if 'login' in act and 'fail' not in act %}{% set fc='login' %}
+          {% elif 'logout' in act %}{% set fc='logout' %}
+          {% elif 'voucher' in act or 'generate' in act %}{% set fc='voucher' %}
+          {% elif 'delete' in act %}{% set fc='delete' %}
+          {% elif 'mac' in act %}{% set fc='mac' %}
+          {% elif 'permission' in act %}{% set fc='permission' %}
+          {% elif 'create' in act %}{% set fc='create' %}
+          {% elif 'fail' in act or 'lock' in act %}{% set fc='fail' %}
+          {% else %}{% set fc='other' %}{% endif %}
+          <div class="log-m-card lmc-{{ fc }} slog-row-m" data-user="{{ (log.username or '')|lower }}" data-action="{{ act }}" data-details="{{ (log.details or '')|lower }}">
+            <div class="log-m-top">
+              <div class="log-m-user">
+                {% if log.username == user_data.username %}<i class="fa-solid fa-star" style="font-size:.44rem;color:#f59e0b;"></i>
+                {% else %}<i class="fa-solid fa-user" style="font-size:.44rem;opacity:.35;"></i>{% endif %}
+                {{ log.username or '—' }}
+              </div>
+              <div class="log-m-time">{{ log.timestamp }}</div>
+            </div>
+            <div class="log-m-action">
+              {% if 'login' in act and 'fail' not in act %}<span class="badge rounded-pill" style="background:rgba(34,197,94,.1);color:#15803d;border:1px solid rgba(34,197,94,.22);font-size:.6rem;"><i class="fa-solid fa-right-to-bracket me-1"></i>Login</span>
+              {% elif 'logout' in act %}<span class="badge rounded-pill" style="background:rgba(100,116,139,.09);color:#475569;border:1px solid rgba(100,116,139,.18);font-size:.6rem;"><i class="fa-solid fa-right-from-bracket me-1"></i>Logout</span>
+              {% elif 'voucher' in act or 'generate' in act %}<span class="badge rounded-pill" style="background:rgba(37,99,235,.09);color:#2563eb;border:1px solid rgba(37,99,235,.18);font-size:.6rem;"><i class="fa-solid fa-ticket me-1"></i>Voucher</span>
+              {% elif 'delete' in act %}<span class="badge rounded-pill" style="background:rgba(239,68,68,.09);color:#b91c1c;border:1px solid rgba(239,68,68,.18);font-size:.6rem;"><i class="fa-solid fa-trash me-1"></i>Delete</span>
+              {% elif 'mac' in act %}<span class="badge rounded-pill" style="background:rgba(245,158,11,.09);color:#b45309;border:1px solid rgba(245,158,11,.22);font-size:.6rem;"><i class="fa-solid fa-rotate-left me-1"></i>MAC Reset</span>
+              {% elif 'permission' in act %}<span class="badge rounded-pill" style="background:rgba(245,158,11,.09);color:#92400e;border:1px solid rgba(245,158,11,.18);font-size:.6rem;"><i class="fa-solid fa-shield-halved me-1"></i>Permission</span>
+              {% else %}<span class="badge rounded-pill" style="background:rgba(99,102,241,.09);color:#4f46e5;border:1px solid rgba(99,102,241,.18);font-size:.6rem;"><i class="fa-solid fa-circle-info me-1"></i>{{ log.action }}</span>{% endif %}
+            </div>
+            {% if log.details %}<div class="log-m-details">{{ log.details }}</div>{% endif %}
+          </div>
+          {% else %}
+          <div style="padding:40px;text-align:center;color:var(--muted);"><i class="fa-solid fa-inbox fa-2x mb-2 d-block opacity-20"></i>No activity yet</div>
+          {% endfor %}
+        </div>
+
+        <div class="px-4 py-2 border-top d-flex justify-content-between text-muted" style="font-size:.67rem;background:var(--surface2);font-weight:600;">
+          <span id="staffLogCount"><i class="fa-solid fa-list me-1" style="font-size:.5rem;opacity:.4;"></i>{{ staff_logs|length }} entries</span>
+          <span style="opacity:.6;">⭐ = Yours</span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+{% if request.endpoint != 'login' %}{% include 'partials/footer_ads.html' %}{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/toasts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/table_tools.js') }}"></script>
+<script>
+  document.addEventListener('scroll',()=>{const n=document.querySelector('.navbar');if(n)n.classList.toggle('scrolled',window.scrollY>10);});
+
+  function onCopyRouterChange(){
+    const val=document.getElementById('copyRouterFrom')?.value;
+    const m=document.getElementById('manualRouterFields');if(!m)return;
+    m.style.display=val?'none':'block';
+    ['r_name','r_ip','r_user'].forEach(id=>{const e=document.getElementById(id);if(e)e.required=!val;});
+  }
+  document.addEventListener('DOMContentLoaded',()=>onCopyRouterChange());
+
+  document.addEventListener('DOMContentLoaded',function(){
+    if(typeof TableTools!=='undefined')
+      new TableTools({table:'#staffUsersTable',search:'#staffUsersSearch',pager:'#staffUsersPager',pageSize:10,pageSizeSelect:'#staffUsersPageSize'});
+  });
+
+  function filterStaffLogs(){
+    const q=(document.getElementById('staffLogSearch')?.value||'').toLowerCase();
+    let vis=0;
+    // Desktop table rows
+    document.querySelectorAll('.slog-row').forEach(r=>{
+      const m=!q||r.dataset.user.includes(q)||r.dataset.action.includes(q)||r.dataset.details.includes(q);
+      r.style.display=m?'':'none';if(m)vis++;
+    });
+    // Mobile cards
+    document.querySelectorAll('.slog-row-m').forEach(r=>{
+      const m=!q||(r.dataset.user||'').includes(q)||(r.dataset.action||'').includes(q)||(r.dataset.details||'').includes(q);
+      r.style.display=m?'':'none';
+    });
+    const c=document.getElementById('staffLogCount');if(c)c.innerHTML='<i class="fa-solid fa-list me-1" style="font-size:.5rem;opacity:.4;"></i>'+vis+' entries';
+  }
+
+  /* ═══ Background Router Status Check via SSE ═══ */
+  (function(){
+    function updateRouterCards(routers) {
+      routers.forEach(function(r) {
+        // Update all sr-card elements matching this router
+        document.querySelectorAll('.sr-card').forEach(function(card) {
+          const nameEl = card.querySelector('.fw-bold');
+          if (!nameEl) return;
+          // Match by checking if the card's header contains router name
+          const cardName = nameEl.textContent.trim();
+          if (cardName !== r.name) return;
+
+          // Update the status indicator in the card header
+          const head = card.querySelector('.p-card-head');
+          if (!head) return;
+
+          // Find or create status badge area
+          let statusSpan = card.querySelector('.sr-status-badge');
+          if (!statusSpan) {
+            statusSpan = document.createElement('span');
+            statusSpan.className = 'sr-status-badge';
+            // Find the existing badge/button area
+            const existingBadge = head.querySelector('span[style*="border-radius:20px"]') || head.querySelector('a.btn');
+            if (existingBadge) existingBadge.parentElement.insertBefore(statusSpan, existingBadge);
+          }
+
+          // If this is the selected (active) router, update the stats grid
+          const statsGrid = card.querySelector('.rcard-grid');
+          if (statsGrid && r.status === 'Online') {
+            const statDivs = statsGrid.querySelectorAll('[style*="background:var(--surface2"]');
+            if (statDivs.length >= 4) {
+              // CPU
+              const cpu = parseInt(r.cpu_load)||0;
+              const cpuC = cpu>80?'#ef4444':cpu>50?'#f59e0b':'#16a34a';
+              const cpuVal = statDivs[0].querySelector('.fw-bold');
+              if (cpuVal) { cpuVal.textContent = cpu + '%'; cpuVal.style.color = cpuC; }
+              const cpuFill = statDivs[0].querySelector('.prog-fill');
+              if (cpuFill) { cpuFill.style.width = cpu + '%'; cpuFill.style.background = cpuC; }
+
+              // RAM
+              const mem = parseInt(r.mem_pct)||0;
+              const memC = mem>80?'#ef4444':mem>60?'#f59e0b':'#3b82f6';
+              const memVal = statDivs[1].querySelector('.fw-bold');
+              if (memVal) { memVal.textContent = mem + '%'; memVal.style.color = memC; }
+              const memFill = statDivs[1].querySelector('.prog-fill');
+              if (memFill) { memFill.style.width = mem + '%'; memFill.style.background = memC; }
+              const memFree = statDivs[1].querySelector('[style*="font-size:.57rem"]');
+              if (memFree) memFree.textContent = (r.free_mem || '') + ' free';
+
+              // Active users
+              const activeVal = statDivs[2].querySelector('.fw-bold');
+              if (activeVal) {
+                activeVal.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#16a34a;display:inline-block;flex-shrink:0;"></span>' + (r.active_users || 0);
+              }
+
+              // Uptime
+              const uptimeVal = statDivs[3].querySelector('.fw-bold');
+              if (uptimeVal) { uptimeVal.textContent = r.uptime || '—'; uptimeVal.title = r.uptime || ''; }
+            }
+          }
+
+          // Update the sub-text under the router name to show online/offline
+          const subText = head.querySelector('[style*="font-size:.7rem"]');
+          if (subText && !subText.querySelector('a')) {
+            // This is the "Active" text area of the selected router
+            if (r.status === 'Online') {
+              subText.innerHTML = '<i class="fa-solid fa-circle text-success me-1" style="font-size:.47rem;"></i>Online';
+            } else {
+              subText.innerHTML = '<i class="fa-solid fa-circle me-1" style="font-size:.47rem;color:#dc2626;"></i>Offline';
+            }
+          }
+        });
+      });
+    }
+
+    window.addEventListener('load', function() {
+      var es;
+      try { es = new EventSource('{{ url_for("dashboard.api_router_status") }}'); } catch(e) { return; }
+      var timeout = setTimeout(function() { try { es.close(); } catch(e) {} }, 30000);
+      es.onmessage = function(e) {
+        try {
+          var msg = JSON.parse(e.data);
+          if (msg.router) updateRouterCards([msg.router]);
+          if (msg.done) { clearTimeout(timeout); if (msg.routers) updateRouterCards(msg.routers); es.close(); }
+        } catch(err) {}
+      };
+      es.onerror = function() {
+        clearTimeout(timeout);
+        es.close();
+        // JSON fallback
+        fetch('{{ url_for("dashboard.api_router_status_json") }}')
+          .then(function(r) { return r.json(); })
+          .then(function(data) { if (data.ok && data.routers) updateRouterCards(data.routers); })
+          .catch(function() {});
+      };
+    });
+  })();
+
+  /* Fix: Move modals to <body> so they aren't clipped by overflow parents */
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.modal').forEach(function(modal) {
+      document.body.appendChild(modal);
+    });
+  });
+</script>
+</html>

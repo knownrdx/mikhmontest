@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Manage Users - {{ router.name }}</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='img/favicon-64.png') }}">
+    <link rel="apple-touch-icon" sizes="256x256" href="{{ url_for('static', filename='img/logo-square-256.png') }}">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_ui.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_layout.css') }}">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/hotspot_users.css') }}">
+
+  <style>
+    .vq-btn.active { box-shadow: 0 0 0 2px currentColor; }
+    .comment-cell { min-width: 120px; }
+  </style>
+</head>
+
+<body class="{% if ui_navbar %}has-navbar{% else %}no-navbar{% endif %}">
+
+{% if ui_navbar %}
+  {% include 'partials/navbar.html' %}
+  {% include "partials/breadcrumbs.html" %}
+{% endif %}
+
+{# Mobile offcanvas sidebar #}
+{% if ui_sidebar %}
+<div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="appSidebarOffcanvas" aria-labelledby="appSidebarOffcanvasLabel">
+  <div class="offcanvas-header border-bottom">
+    <h6 class="offcanvas-title" id="appSidebarOffcanvasLabel">Menu</h6>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body p-0">
+    {% include 'partials/sidebar_auto.html' %}
+  </div>
+</div>
+{% endif %}
+<div class="app-shell d-flex">
+  {% if ui_sidebar %}
+  <aside class="sidebar d-none d-lg-block">
+    {% include 'partials/sidebar_auto.html' %}
+  </aside>
+  {% endif %}
+  <main class="main">
+
+<header class="header-sticky shadow-sm" id="stickyHeader">
+  <div class="container-fluid px-3 py-2">
+
+    <!-- ── Row 1: Title + Action buttons ─────────────────── -->
+    <div class="d-flex justify-content-between align-items-center gap-2 mb-2" id="headerRow1">
+      <h6 class="mb-0 fw-bold d-flex align-items-center gap-2">
+        <i class="fa-solid fa-users text-accent"></i>
+        <span>Users</span>
+      </h6>
+
+      <form id="pdfForm" action="{{ url_for('admin.export_selected_pdf') }}" method="POST" style="display:none;">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="router_id" value="{{ router.id }}">
+        <div id="selected_users_inputs"></div>
+      </form>
+
+      <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
+        <!-- Action group -->
+        <div class="btn-group btn-group-sm" role="group">
+          <button onclick="submitPdfForm()" class="btn btn-danger fw-bold" title="PDF">
+            <i class="fa-solid fa-file-pdf"></i>
+            <span class="d-none d-sm-inline ms-1">PDF</span>
+            <span class="badge bg-white text-danger ms-1" id="selectedCounter">0</span>
+          </button>
+          <button onclick="exportSelectedCSV()" class="btn btn-success fw-bold" title="CSV">
+            <i class="fa-solid fa-file-csv"></i>
+            <span class="d-none d-sm-inline ms-1">CSV</span>
+          </button>
+          <button onclick="bulkDeleteSelected()" class="btn btn-outline-danger fw-bold" title="Delete">
+            <i class="fa-solid fa-trash"></i>
+            <span class="d-none d-sm-inline ms-1">Delete</span>
+            <span class="badge bg-danger text-white ms-1" id="selectedCounter2">0</span>
+          </button>
+        </div>
+        <!-- Nav group -->
+        <div class="btn-group btn-group-sm" role="group">
+          <a href="{{ url_for('admin.hotspot_profiles') }}" class="btn btn-info fw-bold text-white" title="Profiles">
+            <i class="fa-solid fa-sliders"></i>
+          </a>
+          <a href="{{ url_for('admin.hotspot_ip_bindings', router_id=router.id) }}" class="btn btn-warning fw-bold" title="IP/MAC Bindings">
+            <i class="fa-solid fa-link"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Row 2: Search + Filters (collapsible on scroll) ── -->
+    <div id="headerFilters">
+      <div class="row g-2 mb-2">
+        <div class="col-12 col-sm-6 col-md-5 position-relative">
+          <input type="text" id="mainSearch" onkeyup="resetAndFilter()"
+                 class="form-control form-control-sm bg-body text-body border rounded-pill ps-4 shadow-none"
+                 placeholder="Search name, mac, profile, comment…" style="font-size:.82rem;">
+          <i class="fa-solid fa-search position-absolute text-muted" style="left:14px;top:8px;font-size:.75rem;"></i>
+        </div>
+        <div class="col-6 col-sm-3 col-md-3">
+          <select id="profileFilter" class="custom-select w-100 rounded-pill" style="font-size:.8rem;padding:5px 10px;" onchange="onProfileChange()">
+            <option value="">All Profiles</option>
+          </select>
+        </div>
+        <div class="col-6 col-sm-3 col-md-3">
+          <select id="groupCommentFilter" class="custom-select w-100 rounded-pill" style="font-size:.8rem;padding:5px 10px;" onchange="onCommentChange()">
+            <option value="">All Comments</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-1">
+          <select id="recordsPerPage" class="custom-select w-100 rounded-pill" style="font-size:.8rem;padding:5px 8px;" onchange="resetAndFilter()">
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="500">500</option>
+            <option value="999999">All</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Row 3: Select All + Quick Filter Pills (always visible) ── -->
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="form-check d-flex align-items-center gap-2 mb-0">
+        <input type="checkbox" class="form-check-input select-box" id="selectAll" onclick="toggleSelectAll()" style="width:18px;height:18px;">
+        <label class="form-check-label small fw-bold text-muted" for="selectAll" style="cursor:pointer;font-size:.75rem;">
+          <span id="selectAllLabel">SELECT PAGE</span>
+          <span id="selectAllCount" class="badge bg-secondary ms-1" style="font-size:.6rem;">0</span>
+        </label>
+      </div>
+
+      <div class="d-flex gap-1 flex-wrap" id="voucherQuickFilters">
+        <button class="btn btn-sm rounded-pill fw-bold px-2 vq-btn active" id="vqAll"
+                onclick="setVoucherFilter('all')" style="font-size:.72rem;padding-top:3px;padding-bottom:3px;"
+                title="সব voucher">
+          <i class="fa-solid fa-list me-1"></i>All
+          <span class="ms-1 badge bg-secondary rounded-pill" id="vqAllCount" style="font-size:.6rem;">0</span>
+        </button>
+        <button class="btn btn-sm rounded-pill fw-bold px-2 vq-btn" id="vqAvailable"
+                onclick="setVoucherFilter('available')" style="font-size:.72rem;padding-top:3px;padding-bottom:3px;background:rgba(34,197,94,.15);color:#16a34a;border:1px solid rgba(34,197,94,.3);"
+                title="Not sold yet">
+          <i class="fa-solid fa-ticket me-1"></i>Available
+          <span class="ms-1 badge rounded-pill" style="background:#16a34a;font-size:.6rem;" id="vqAvailableCount">0</span>
+        </button>
+        <button class="btn btn-sm rounded-pill fw-bold px-2 vq-btn" id="vqInUse"
+                onclick="setVoucherFilter('inuse')" style="font-size:.72rem;padding-top:3px;padding-bottom:3px;background:rgba(139,92,246,.12);color:#7c3aed;border:1px solid rgba(139,92,246,.25);"
+                title="Sold this month">
+          <i class="fa-solid fa-chart-bar me-1"></i>This Month
+          <span class="ms-1 badge rounded-pill" style="background:#7c3aed;font-size:.6rem;" id="vqInUseCount">0</span>
+        </button>
+        <button class="btn btn-sm rounded-pill fw-bold px-2 vq-btn" id="vqToday"
+                onclick="setVoucherFilter('today')" style="font-size:.72rem;padding-top:3px;padding-bottom:3px;background:rgba(249,115,22,.12);color:#ea580c;border:1px solid rgba(249,115,22,.25);"
+                title="Sold today">
+          <i class="fa-solid fa-calendar-day me-1"></i>Today
+          <span class="ms-1 badge rounded-pill" style="background:#ea580c;font-size:.6rem;" id="vqTodayCount">0</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</header>
+
+
+<div class="container-fluid px-3">
+
+  {# ═══════════════ DESKTOP TABLE ═══════════════ #}
+  <div class="table-responsive d-none d-md-block">
+    <table class="user-table">
+      <thead>
+        <tr>
+          <th style="width:34px;padding:10px 4px 10px 8px;"></th>
+          <th class="sortable" data-sort="name" style="padding:10px 8px;">
+            Name / Profile
+            <i class="fa-solid fa-sort ms-1 sort-icon" style="opacity:.4;font-size:.7rem;"></i>
+          </th>
+          <th class="sortable" data-sort="mac" style="padding:10px 8px;">
+            MAC Address
+            <i class="fa-solid fa-sort ms-1 sort-icon" style="opacity:.4;font-size:.7rem;"></i>
+          </th>
+          <th class="sortable" data-sort="traffic" style="padding:10px 8px;">
+            Traffic / Status
+            <i class="fa-solid fa-sort ms-1 sort-icon" style="opacity:.4;font-size:.7rem;"></i>
+          </th>
+          <th class="sortable" data-sort="comment" style="padding:10px 8px;">
+            Comment
+            <i class="fa-solid fa-sort ms-1 sort-icon" style="opacity:.4;font-size:.7rem;"></i>
+          </th>
+          <th style="padding:10px 8px;text-align:right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        {% for u in users %}
+        <tr class="user-row"
+            data-id="{{ u.id }}"
+            data-name="{{ (u.name or '')|upper }}"
+            data-name-raw="{{ (u.name or '')|e }}"
+            data-profile="{{ (u.profile or '')|upper }}"
+            data-profile-raw="{{ (u.profile or '')|e }}"
+            data-mac="{{ (u['mac-address'] or 'no-mac')|upper }}"
+            data-mac-raw="{{ (u['mac-address'] or '')|e }}"
+            data-bytesout="{{ (u['bytes-out'] or 0)|int }}"
+            data-comment="{{ (u.comment or 'NO COMMENT')|upper }}"
+            data-comment-raw="{{ (u.comment or '')|e }}"
+            data-disabled="{{ (u.disabled or '')|lower }}"
+            data-comment-date="{{ (u.comment or '')|e }}">
+
+          <td style="padding:8px 4px 8px 8px;">
+            <input type="checkbox" class="form-check-input select-box item-checkbox"
+                   style="width:16px;height:16px;cursor:pointer;margin:0;" onclick="updateSelection()">
+          </td>
+
+          {# Name + Profile #}
+          <td style="padding:8px;">
+            <div class="fw-bold" style="font-size:.85rem;line-height:1.3;">{{ u.name }}</div>
+            <div class="mt-1">
+              <span class="badge" style="font-size:.58rem;background:rgba(37,99,235,.1);color:var(--accent,#2563eb);border:1px solid rgba(37,99,235,.2);padding:2px 6px;">
+                {{ u.profile }}
+              </span>
+            </div>
+          </td>
+
+          {# MAC #}
+          <td class="font-monospace text-muted" style="font-size:.72rem;padding:8px;letter-spacing:.3px;">
+            {{ u['mac-address'] or '—' }}
+          </td>
+
+          {# Traffic + Status #}
+          <td style="padding:8px;">
+            <div style="font-size:.75rem;color:#16a34a;font-weight:600;">
+              <i class="fa-solid fa-arrow-down" style="font-size:.6rem;"></i>
+              {{ (u['bytes-out']|int / 1048576)|round(1) }} MB
+            </div>
+            {% if u.disabled in ('true', 'yes') %}
+            <div style="font-size:.7rem;font-weight:700;color:#dc2626;margin-top:2px;">
+              <span class="status-dot bg-offline"></span>Disabled
+            </div>
+            {% else %}
+            <div style="font-size:.7rem;font-weight:700;color:#16a34a;margin-top:2px;">
+              <span class="status-dot bg-online"></span>Active
+            </div>
+            {% endif %}
+          </td>
+
+          {# Comment — filled by JS applyCommentRules() #}
+          <td class="small comment-cell" style="padding:8px;max-width:160px;"></td>
+
+          {# Actions #}
+          <td style="padding:8px;">
+            <div class="d-flex justify-content-end gap-1">
+              <button class="action-btn btn-toggle" title="{{ 'Enable' if u.disabled in ('true','yes') else 'Disable' }}"
+                      style="width:30px;height:30px;border-radius:7px;"
+                      onclick="toggleUser('{{ u.id }}', '{{ 'enable' if u.disabled in ('true','yes') else 'disable' }}', this)">
+                <i class="fa {{ 'fa-play' if u.disabled in ('true','yes') else 'fa-pause' }}" style="font-size:.72rem;"></i>
+              </button>
+              <button class="action-btn" title="Bypass Login"
+                      onclick="addBypass('{{ u['mac-address'] or '' }}', '{{ u.name }}', this)"
+                      style="width:30px;height:30px;border-radius:7px;background:rgba(16,185,129,.1);color:#059669;border:1px solid rgba(16,185,129,.3);">
+                <i class="fa-solid fa-bolt" style="font-size:.72rem;"></i>
+              </button>
+              <button class="action-btn btn-edit" style="width:30px;height:30px;border-radius:7px;"
+                      onclick="openEditModal({{ u.id|tojson }},{{ (u.name or '')|tojson }},{{ (u.password or '')|tojson }},{{ (u.profile or '')|tojson }},{{ (u.comment or '')|tojson }})">
+                <i class="fa-solid fa-edit" style="font-size:.72rem;"></i>
+              </button>
+              <button class="action-btn btn-delete" style="width:30px;height:30px;border-radius:7px;"
+                      onclick="deleteSingleUser('{{ u.id }}', '{{ u.name }}', this)" title="Delete">
+                <i class="fa-solid fa-trash" style="font-size:.72rem;"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# Mobile cards — rendered by JS from desktop row data #}
+  <div class="d-md-none" id="mobileCardBody"></div>
+</div>
+
+<div class="pagination-container" id="paginationSection">
+  <button class="btn btn-dark btn-sm px-3 shadow-sm" id="prevBtn" onclick="changePage(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+  <div class="fw-bold text-accent px-3" id="pageInfo" style="min-width:100px;text-align:center;border-bottom:2px solid var(--accent);"></div>
+  <button class="btn btn-dark btn-sm px-3 shadow-sm" id="nextBtn" onclick="changePage(1)"><i class="fa-solid fa-chevron-right"></i></button>
+</div>
+
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-body border">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="fa-solid fa-user-edit text-accent me-2"></i>Edit Hotspot User</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <form action="{{ url_for('admin.edit_hotspot_user') }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body">
+          <input type="hidden" name="router_id" value="{{ router.id }}">
+          <input type="hidden" name="user_id" id="edit_user_id">
+
+          <div class="mb-3">
+            <label class="small text-muted mb-1">Username</label>
+            <input type="text" name="u_name" id="edit_u_name" class="form-control bg-body text-body border" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="small text-muted mb-1">Password</label>
+            <input type="text" name="u_pass" id="edit_u_pass" class="form-control bg-body text-body border">
+          </div>
+
+          <div class="mb-3">
+            <label class="small text-muted mb-1">Profile (Package)</label>
+            <select name="u_profile" id="edit_u_profile" class="form-select bg-body text-body border">
+              {% for p in profiles %}
+              <option value="{{ p }}">{{ p }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="small text-muted mb-1">Comment</label>
+            <input type="text" name="u_comment" id="edit_u_comment" class="form-control bg-body text-body border">
+          </div>
+        </div>
+
+        <div class="modal-footer border-secondary">
+          <button type="submit" class="btn btn-primary w-100 fw-bold">SAVE CHANGES</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  let currentPage = 1, recordsPerPage = 25;
+  let filteredRows = [];
+  let baseFilteredRows = [];
+  let voucherFilter = "all"; // "all" | "available" | "inuse" | "today"
+
+  // ✅ sort state (header bar only)
+  let sortState = { key: "", dir: "asc" }; // asc/desc
+
+  function setVoucherFilter(mode) {
+    voucherFilter = mode;
+    // update button styles
+    document.querySelectorAll(".vq-btn").forEach(b => b.classList.remove("active"));
+    const map = {all:"vqAll", available:"vqAvailable", inuse:"vqInUse", today:"vqToday"};
+    const btn = document.getElementById(map[mode]);
+    if (btn) {
+      btn.classList.add("active");
+      btn.style.outline = "2px solid currentColor";
+      btn.style.outlineOffset = "2px";
+    }
+    document.querySelectorAll(".vq-btn").forEach(b => {
+      if (!b.classList.contains("active")) { b.style.outline = ""; b.style.outlineOffset = ""; }
+    });
+    currentPage = 1;
+    filterData();
+  }
+
+  function updateVoucherCounts() {
+    // Count within active comment+profile filter scope
+    const groupEl   = document.getElementById("groupCommentFilter");
+    const profEl    = document.getElementById("profileFilter");
+    const group     = groupEl ? groupEl.value.toUpperCase()   : "";
+    const profSel   = profEl  ? profEl.value.toUpperCase()    : "";
+
+    const allRows = Array.from(document.querySelectorAll(".user-row"));
+
+    // Scope = rows matching current comment+profile filter
+    const scope = allRows.filter(r => {
+      const p  = (r.getAttribute("data-profile") || "").toUpperCase();
+      const cv = (r.getAttribute("data-comment") || "").toUpperCase();
+      const matchC = !group   || cv === group;
+      const matchP = !profSel || p  === profSel;
+      return matchC && matchP;
+    });
+
+    const total     = scope.length;
+    const available = scope.filter(r => r.getAttribute("data-sold")  !== "true").length;
+    const thisMonth = scope.filter(r => r.getAttribute("data-month") === "true").length;
+    const today     = scope.filter(r => r.getAttribute("data-today") === "true").length;
+
+    const qAll = document.getElementById("vqAllCount");
+    if (qAll) qAll.textContent = total;
+    const qAv = document.getElementById("vqAvailableCount");
+    if (qAv) qAv.textContent = available;
+    const qIu = document.getElementById("vqInUseCount");
+    if (qIu) qIu.textContent = thisMonth;
+    const qTo = document.getElementById("vqTodayCount");
+    if (qTo) qTo.textContent = today;
+  }
+
+  // Active only if comment has: jan/31/2026 16:00:57
+  function isActiveByComment(raw) {
+    if (!raw) return false;
+    const s = String(raw).trim();
+    const re = /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2}\b/i;
+    return re.test(s);
+  }
+
+  // Extract comment label (part before the date/time and before bracket metadata)
+  function extractCommentLabel(raw) {
+    if (!raw) return "";
+    // Remove activation date (jan/31/2026 16:00:57)
+    let cleaned = raw.replace(/\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2}\b/i, "");
+    // Remove generation metadata bracket [25-Mar-2026 12:30PM x10]
+    cleaned = cleaned.replace(/\[.*?\]/g, "");
+    return cleaned.trim();
+  }
+
+  // Extract generation info from bracket [25-Mar-2026 12:30PM x10]
+  function extractGenInfo(raw) {
+    if (!raw) return null;
+    const m = raw.match(/\[([^\]]+)\]/);
+    if (!m) return null;
+    const info = m[1].trim();
+    const dateMatch = info.match(/(\d{1,2}-\w{3}-\d{4})\s+(\d{1,2}:\d{2}\s*[APap][Mm])/);
+    const qtyMatch = info.match(/x(\d+)/);
+    return {
+      date: dateMatch ? dateMatch[1] : '',
+      time: dateMatch ? dateMatch[2] : '',
+      qty: qtyMatch ? parseInt(qtyMatch[1], 10) : 0
+    };
+  }
+
+  // Extract date string from comment
+  function extractCommentDate(raw) {
+    if (!raw) return null;
+    const re = /\b((?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\/\d{1,2}\/\d{4})\s+\d{1,2}:\d{2}:\d{2}\b/i;
+    const m = raw.match(re);
+    return m ? m[1].toLowerCase() : null; // e.g. "jan/31/2026"
+  }
+
+  // Check if date string is today
+  function isToday(dateStr) {
+    if (!dateStr) return false;
+    const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,sept:8,oct:9,nov:10,dec:11};
+    const parts = dateStr.split("/");
+    if (parts.length < 3) return false;
+    const mon = months[parts[0].toLowerCase()];
+    if (mon === undefined) return false;
+    const day = parseInt(parts[1], 10);
+    const yr  = parseInt(parts[2], 10);
+    const now = new Date();
+    return now.getFullYear() === yr && now.getMonth() === mon && now.getDate() === day;
+  }
+
+  // Check if date string is this calendar month
+  function isThisMonth(dateStr) {
+    if (!dateStr) return false;
+    const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,sept:8,oct:9,nov:10,dec:11};
+    const parts = dateStr.split("/");
+    if (parts.length < 3) return false;
+    const mon = months[parts[0].toLowerCase()];
+    if (mon === undefined) return false;
+    const yr  = parseInt(parts[2], 10);
+    const now = new Date();
+    return now.getFullYear() === yr && now.getMonth() === mon;
+  }
+
+  // ✅ Comment rules:
+  // - Active (has date) => show label + "In Use" badge. If today => also "Today" badge
+  // - Inactive => show label only
+  // - Show unused count per batch group
+  function applyCommentRules() {
+    const rows = Array.from(document.querySelectorAll(".user-row"));
+
+    // Count unused vouchers per batch label
+    const batchCounts = {};  // label → { total, unused }
+    rows.forEach(r => {
+      const raw = (r.getAttribute("data-comment-raw") || "").trim();
+      const label = extractCommentLabel(raw);
+      const genInfo = extractGenInfo(raw);
+      if (!label) return;
+      const key = label.toUpperCase();
+      if (!batchCounts[key]) batchCounts[key] = { total: 0, unused: 0, genInfo: genInfo };
+      batchCounts[key].total++;
+      const sold = /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\/\d{1,2}\/\d{4}/i.test(raw);
+      if (!sold) batchCounts[key].unused++;
+    });
+
+    rows.forEach(r => {
+      const raw = (r.getAttribute("data-comment-raw") || "").trim();
+      const active = isActiveByComment(raw);
+      const label = extractCommentLabel(raw);
+      const dateStr = extractCommentDate(raw);
+      const today = isToday(dateStr);
+      const genInfo = extractGenInfo(raw);
+
+      r.setAttribute("data-active", active ? "true" : "false");
+      // data-sold = has any date stamp (sold ever)
+      const sold = /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\/\d{1,2}\/\d{4}/i.test(raw);
+      r.setAttribute("data-sold", sold ? "true" : "false");
+      // data-today = sold today
+      r.setAttribute("data-today", today ? "true" : "false");
+      // data-month = sold this calendar month
+      const thisMonth = isThisMonth(dateStr);
+      r.setAttribute("data-month", thisMonth ? "true" : "false");
+
+      // Get batch unused count
+      const bKey = label ? label.toUpperCase() : "";
+      const batch = batchCounts[bKey];
+
+      // Desktop comment cell
+      const cell = r.querySelector(".comment-cell");
+      if (cell) {
+        let html = "";
+        if (label) html += `<span class="fw-bold" style="font-size:.8rem;">${label}</span> `;
+        // Show gen date if present
+        if (genInfo && genInfo.date) {
+          html += `<div style="font-size:.6rem;color:var(--muted,#94a3b8);margin-top:1px;"><i class="fa-solid fa-calendar-plus me-1"></i>${genInfo.date} ${genInfo.time || ''}</div>`;
+        }
+        if (batch && label) {
+          html += `<span class="badge" style="font-size:.55rem;background:rgba(34,197,94,.12);color:#16a34a;border:1px solid rgba(34,197,94,.25);margin-top:2px;"><i class="fa-solid fa-ticket me-1" style="font-size:.45rem;"></i>${batch.unused} unused</span> `;
+        }
+        if (active) html += `<span class="badge" style="font-size:.58rem;background:rgba(239,68,68,.15);color:#dc2626;border:1px solid rgba(239,68,68,.3);"><i class="fa-solid fa-wifi me-1" style="font-size:.5rem;"></i>In Use</span>`;
+        if (today) html += `<span class="badge ms-1" style="font-size:.58rem;background:rgba(249,115,22,.15);color:#ea580c;border:1px solid rgba(249,115,22,.3);"><i class="fa-solid fa-fire me-1" style="font-size:.5rem;"></i>Today</span>`;
+        cell.innerHTML = html || `<span class="text-muted" style="font-size:.75rem;">—</span>`;
+      }
+      // Mobile comment cell (inside name column)
+      const mobileCell = r.querySelector(".comment-cell-mobile");
+      if (mobileCell) {
+        let mhtml = "";
+        if (label) mhtml += `<span style="font-weight:600;">${label}</span>`;
+        if (batch && label) mhtml += ` <span style="color:#16a34a;font-size:.6rem;">(${batch.unused} free)</span>`;
+        if (active) mhtml += ` <span style="color:#dc2626;">● In Use</span>`;
+        else if (sold && dateStr) mhtml += ` <span style="color:#dc2626;font-size:.58rem;">● Expired <span style="color:#94a3b8;">${dateStr}</span></span>`;
+        else if (label) mhtml += ` <span style="color:#16a34a;">● Free</span>`;
+        mobileCell.innerHTML = mhtml;
+      }
+
+      // Always set data-comment to the batch serial label (vc-XXX)
+      // Do NOT wipe it for active users — filter must work regardless of in-use status
+      const up = label ? label.toUpperCase() : "";
+      r.setAttribute("data-comment", (up && up !== "-") ? up : "NO COMMENT");
+    });
+
+    updateVoucherCounts();
+  }
+
+  // -------------------------
+  // ✅ Sorting helpers
+  // -------------------------
+  function getSortValue(row, key) {
+    if (key === "name") return (row.getAttribute("data-name") || "").toUpperCase();
+    if (key === "mac") return (row.getAttribute("data-mac") || "").toUpperCase();
+
+    if (key === "comment") {
+      // sorting by raw comment
+      return (row.getAttribute("data-comment-raw") || "").toUpperCase();
+    }
+
+    if (key === "traffic") {
+      // numeric sort by bytes-out (0-9 / 9-0)
+      const bytes = parseInt(row.getAttribute("data-bytesout") || "0", 10);
+      return isNaN(bytes) ? 0 : bytes;
+    }
+    return "";
+  }
+
+  function applySort(rowsArr) {
+    if (!sortState.key) return rowsArr;
+
+    const dirMul = (sortState.dir === "asc") ? 1 : -1;
+
+    return rowsArr.sort((a, b) => {
+      const av = getSortValue(a, sortState.key);
+      const bv = getSortValue(b, sortState.key);
+
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dirMul;
+      return av.localeCompare(bv) * dirMul;
+    });
+  }
+
+  function updateSortIcons() {
+    document.querySelectorAll("th.sortable").forEach(th => {
+      th.classList.remove("active-sort");
+      const icon = th.querySelector(".sort-icon");
+      if (!icon) return;
+
+      icon.className = "fa-solid fa-sort ms-1 sort-icon";
+      if (th.dataset.sort === sortState.key) {
+        th.classList.add("active-sort");
+        icon.className = (sortState.dir === "asc")
+          ? "fa-solid fa-sort-up ms-1 sort-icon"
+          : "fa-solid fa-sort-down ms-1 sort-icon";
+      }
+    });
+  }
+
+  // Row click — use event delegation (one listener on tbody, no need to rebind)
+  function bindRowClick() {
+    const tbody = document.getElementById("tableBody");
+    if (!tbody || tbody._rowClickBound) return;
+    tbody._rowClickBound = true;
+    tbody.addEventListener('click', function(e) {
+      const row = e.target.closest('.user-row');
+      if (!row) return;
+      if (e.target.closest('button,a,input,select,.action-btn,.btn')) return;
+      const cb = row.querySelector('.item-checkbox');
+      if (cb) { cb.checked = !cb.checked; updateSelection(); }
+    });
+    // cursor style via CSS is better, but set here for safety
+    document.querySelectorAll('.user-row').forEach(r => r.style.cursor = 'pointer');
+  }
+
+  function bindSortHeaders() {
+    document.querySelectorAll("th.sortable").forEach(th => {
+      th.addEventListener("click", () => {
+        const key = th.dataset.sort;
+
+        if (sortState.key === key) {
+          sortState.dir = (sortState.dir === "asc") ? "desc" : "asc";
+        } else {
+          sortState.key = key;
+          sortState.dir = "asc";
+        }
+
+        updateSortIcons();
+        filterData(); // re-run with sort
+      });
+    });
+  }
+
+  // -------------------------
+  // Dropdowns
+  // -------------------------
+  function populateProfiles() {
+    const rows = Array.from(document.querySelectorAll(".user-row"));
+    const dropdown = document.getElementById("profileFilter");
+    if (!dropdown) return;
+    const saved = dropdown.value;
+    const profiles = new Set();
+    dropdown.length = 1;
+
+    rows.forEach(r => {
+      const p = (r.getAttribute("data-profile") || "").trim().toUpperCase();
+      if (p) profiles.add(p);
+    });
+
+    Array.from(profiles).sort().forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p;   // UPPERCASE → matches filterData comparison
+      opt.text  = p;
+      dropdown.add(opt);
+    });
+
+    if (saved && Array.from(dropdown.options).some(o => o.value === saved)) {
+      dropdown.value = saved;
+    }
+  }
+
+  function populateComments() {
+    const rows = Array.from(document.querySelectorAll(".user-row"));
+    const dropdown = document.getElementById("groupCommentFilter");
+    if (!dropdown) return;
+    const saved = dropdown.value; // preserve selection if repopulating
+    const comments = new Set();
+    const commentCounts = {};  // label → { total, unused }
+    dropdown.length = 1;
+
+    rows.forEach(r => {
+      const cv = (r.getAttribute("data-comment") || "").trim().toUpperCase();
+      const sold = r.getAttribute("data-sold") === "true";
+      if (cv && cv !== "NO COMMENT") {
+        comments.add(cv);
+        if (!commentCounts[cv]) commentCounts[cv] = { total: 0, unused: 0 };
+        commentCounts[cv].total++;
+        if (!sold) commentCounts[cv].unused++;
+      }
+    });
+
+    Array.from(comments).sort().forEach(cv => {
+      const opt = document.createElement("option");
+      opt.value = cv;          // stored UPPERCASE → matches filterData comparison
+      const counts = commentCounts[cv];
+      opt.text  = counts ? `${cv} (${counts.unused} free)` : cv;
+      dropdown.add(opt);
+    });
+
+    // Restore previous selection if still valid
+    if (saved && Array.from(dropdown.options).some(o => o.value === saved)) {
+      dropdown.value = saved;
+    }
+  }
+
+  // Called when profile dropdown changes — reset to all
+  function onProfileChange() {
+    // profile selected → reset quick filter to All
+    voucherFilter = "all";
+    document.querySelectorAll(".vq-btn").forEach(b => {
+      b.classList.remove("active");
+      b.style.outline = ""; b.style.outlineOffset = "";
+    });
+    const allBtn = document.getElementById("vqAll");
+    if (allBtn) {
+      allBtn.classList.add("active");
+      allBtn.style.outline = "2px solid currentColor";
+      allBtn.style.outlineOffset = "2px";
+    }
+    currentPage = 1;
+    filterData();
+  }
+
+  // Called when comment dropdown changes — auto-switch to Available filter
+  function onCommentChange() {
+    const val = document.getElementById("groupCommentFilter").value;
+    if (val) {
+      // comment selected → show only available (not in use) by default
+      voucherFilter = "available";
+      document.querySelectorAll(".vq-btn").forEach(b => {
+        b.classList.remove("active");
+        b.style.outline = ""; b.style.outlineOffset = "";
+      });
+      const availBtn = document.getElementById("vqAvailable");
+      if (availBtn) {
+        availBtn.classList.add("active");
+        availBtn.style.outline = "2px solid currentColor";
+        availBtn.style.outlineOffset = "2px";
+      }
+    }
+    currentPage = 1;
+    filterData();
+  }
+
+  // -------------------------
+  // Filter + Pagination
+  // -------------------------
+  function filterData() {
+    const searchEl = document.getElementById("mainSearch");
+    const groupEl  = document.getElementById("groupCommentFilter");
+    const profEl   = document.getElementById("profileFilter");
+    const rppEl    = document.getElementById("recordsPerPage");
+
+    const search        = searchEl ? searchEl.value.toUpperCase() : "";
+    const group         = groupEl  ? groupEl.value.toUpperCase()  : "";
+    const profileSelected = profEl ? profEl.value.toUpperCase()   : "";
+
+    recordsPerPage = rppEl ? parseInt(rppEl.value, 10) : 25;
+    if (isNaN(recordsPerPage) || recordsPerPage < 1) recordsPerPage = 25;
+
+    const allRows = Array.from(document.querySelectorAll(".user-row"));
+
+    // base filter: profile + search + comment
+    baseFilteredRows = allRows.filter(r => {
+      const n = (r.getAttribute("data-name")    || "").toUpperCase();
+      const m = (r.getAttribute("data-mac")     || "").toUpperCase();
+      const p = (r.getAttribute("data-profile") || "").toUpperCase();
+      const cv = (r.getAttribute("data-comment") || "").toUpperCase();
+
+      const matchesSearch  = !search  || n.includes(search) || m.includes(search) || p.includes(search) || cv.includes(search);
+      const matchesComment = !group   || cv === group;
+      const matchesProfile = !profileSelected || p === profileSelected;
+
+      return matchesSearch && matchesComment && matchesProfile;
+    });
+
+    const ucEl = document.getElementById("userCount");
+    if (ucEl) ucEl.innerText = baseFilteredRows.length;
+
+    // Apply voucher quick filter
+    if (voucherFilter === "available") {
+      // Available = never sold
+      filteredRows = baseFilteredRows.filter(r => r.getAttribute("data-sold") !== "true");
+    } else if (voucherFilter === "inuse") {
+      // This Month = sold in current calendar month
+      filteredRows = baseFilteredRows.filter(r => r.getAttribute("data-month") === "true");
+    } else if (voucherFilter === "today") {
+      // Today = sold today
+      filteredRows = baseFilteredRows.filter(r => r.getAttribute("data-today") === "true");
+    } else {
+      filteredRows = baseFilteredRows.slice();
+    }
+
+    // ✅ apply sort on displayed rows only
+    filteredRows = applySort(filteredRows);
+
+    // hide all then show page slice
+    allRows.forEach(r => r.style.display = "none");
+    updatePagination();
+    updateSelection(); // refresh selectAll label + count
+    updateVoucherCounts(); // refresh pill counts within current filter scope
+
+    const pb = document.getElementById("pendingBadge"); if (pb) pb.style.display = "none";
+  }
+
+  function updatePagination() {
+    const totalPages = Math.ceil(filteredRows.length / recordsPerPage) || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    const pageRows = filteredRows.slice((currentPage - 1) * recordsPerPage, currentPage * recordsPerPage);
+
+    // Show/hide desktop table rows
+    filteredRows.forEach(r => r.style.display = "none");
+    pageRows.forEach(r => r.style.display = "table-row");
+
+    // Render mobile cards
+    renderMobileCards(pageRows);
+
+    document.getElementById("prevBtn").disabled = (currentPage === 1);
+    document.getElementById("nextBtn").disabled = (currentPage === totalPages);
+    document.getElementById("pageInfo").innerText = `PAGE ${currentPage} / ${totalPages}`;
+    document.getElementById("paginationSection").style.display = (recordsPerPage > 5000) ? "none" : "flex";
+  }
+
+  function renderMobileCards(rows) {
+    const container = document.getElementById("mobileCardBody");
+    if (!container) return;
+    container.innerHTML = "";
+    rows.forEach(tr => {
+      const uid      = tr.getAttribute("data-id") || "";
+      const name     = tr.getAttribute("data-name-raw") || tr.getAttribute("data-name") || "";
+      const profile  = tr.getAttribute("data-profile-raw") || tr.getAttribute("data-profile") || "";
+      const mac      = tr.getAttribute("data-mac-raw") || tr.getAttribute("data-mac") || "—";
+      const disabled = (tr.getAttribute("data-disabled") || "") === "true" || (tr.getAttribute("data-disabled") || "") === "yes";
+      const bytes    = parseInt(tr.getAttribute("data-bytesout") || "0", 10);
+      const mb       = (bytes / 1048576).toFixed(1);
+
+      // Get comment HTML from desktop comment cell
+      const commentCell = tr.querySelector(".comment-cell");
+      const commentHTML  = commentCell ? commentCell.innerHTML : "";
+
+      const statusBadge = disabled
+        ? `<span style="font-size:.65rem;font-weight:700;color:#dc2626;background:rgba(220,53,69,.1);border:1px solid rgba(220,53,69,.25);border-radius:20px;padding:2px 8px;"><span class="status-dot bg-offline"></span>Disabled</span>`
+        : `<span style="font-size:.65rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);border-radius:20px;padding:2px 8px;"><span class="status-dot bg-online"></span>Active</span>`;
+
+      const toggleIcon  = disabled ? "fa-play"  : "fa-pause";
+      const toggleAct   = disabled ? "enable"   : "disable";
+
+      // Get raw name/pass/profile/comment for edit modal from desktop row buttons
+      const editBtn = tr.querySelector(".btn-edit");
+      const editOnclick = editBtn ? editBtn.getAttribute("onclick") : "";
+
+      const card = document.createElement("div");
+      card.className = "mobile-card";
+      card.style.cssText = "background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);border-radius:14px;padding:12px 14px;margin-bottom:10px;position:relative;";
+      card.innerHTML = `
+        <div style="position:absolute;top:12px;left:12px;">
+          <input type="checkbox" class="form-check-input select-box item-checkbox"
+                 style="width:16px;height:16px;cursor:pointer;margin:0;"
+                 data-uid="${uid}" onclick="updateSelection()">
+        </div>
+        <div style="position:absolute;top:12px;right:12px;">${statusBadge}</div>
+        <div style="padding-left:26px;padding-right:72px;">
+          <div class="fw-bold" style="font-size:.92rem;line-height:1.3;letter-spacing:-.01em;">${name}</div>
+          <div class="mt-1">
+            <span class="badge" style="font-size:.6rem;background:rgba(37,99,235,.1);color:var(--accent,#2563eb);border:1px solid rgba(37,99,235,.2);padding:2px 7px;border-radius:6px;">${profile}</span>
+          </div>
+          <div class="mt-1" style="font-size:.68rem;color:var(--muted,#64748b);">${commentHTML}</div>
+          <div class="d-flex flex-wrap align-items-center gap-2 mt-2" style="border-top:1px solid var(--border,#f1f5f9);padding-top:6px;">
+            <span class="font-monospace" style="font-size:.62rem;color:var(--muted,#94a3b8);letter-spacing:.3px;">
+              <i class="fa-solid fa-network-wired me-1" style="font-size:.55rem;"></i>${mac}
+            </span>
+            <span style="font-size:.65rem;color:#16a34a;font-weight:600;">
+              <i class="fa-solid fa-arrow-down" style="font-size:.55rem;"></i> ${mb} MB
+            </span>
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-2 justify-content-end">
+          <button class="action-btn btn-toggle" title="${disabled ? 'Enable' : 'Disable'}"
+                  style="width:32px;height:32px;border-radius:8px;"
+                  onclick="toggleUser('${uid}', '${toggleAct}', this)">
+            <i class="fa ${toggleIcon}" style="font-size:.72rem;"></i>
+          </button>
+          <button class="action-btn" title="Bypass Login"
+                  onclick="addBypass('${mac === '—' ? '' : mac}', '${name}', this)"
+                  style="width:32px;height:32px;border-radius:8px;background:rgba(16,185,129,.1);color:#059669;border:1px solid rgba(16,185,129,.3);">
+            <i class="fa-solid fa-bolt" style="font-size:.72rem;"></i>
+          </button>
+          <button class="action-btn btn-edit" style="width:32px;height:32px;border-radius:8px;"
+                  onclick="${editOnclick}">
+            <i class="fa-solid fa-edit" style="font-size:.72rem;"></i>
+          </button>
+          <button class="action-btn btn-delete" style="width:32px;height:32px;border-radius:8px;"
+                  onclick="deleteSingleUser('${uid}', '${name}', this)" title="Delete">
+            <i class="fa-solid fa-trash" style="font-size:.72rem;"></i>
+          </button>
+        </div>`;
+      container.appendChild(card);
+    });
+  }
+
+  function changePage(s) { currentPage += s; filterData(); window.scrollTo(0, 0); }
+
+  function resetAndFilter() {
+    currentPage = 1;
+    applyCommentRules();
+    populateProfiles();
+    populateComments();
+    filterData();
+  }
+
+  // -------------------------
+  // Select + Export
+  // -------------------------
+  function toggleSelectAll() {
+    const isChecked = document.getElementById("selectAll").checked;
+    // Only select rows that are currently visible (current page slice)
+    const visibleRows = filteredRows.filter(r => r.style.display !== "none");
+    visibleRows.forEach(r => { r.querySelector(".item-checkbox").checked = isChecked; });
+    updateSelection();
+  }
+
+  function updateSelection() {
+    const count = document.querySelectorAll(".item-checkbox:checked").length;
+    document.getElementById("selectedCounter").innerText = count;
+    document.getElementById("selectedCounter2").innerText = count;
+
+    // Update selectAll checkbox state based on visible rows
+    const visibleRows = filteredRows.filter(r => r.style.display !== "none");
+    const allVisibleChecked = visibleRows.length > 0 && visibleRows.every(r => r.querySelector(".item-checkbox").checked);
+    const selectAllEl = document.getElementById("selectAll");
+    if (selectAllEl) {
+      selectAllEl.checked = allVisibleChecked;
+      selectAllEl.indeterminate = !allVisibleChecked && visibleRows.some(r => r.querySelector(".item-checkbox").checked);
+    }
+
+    // Update label: show context based on active filter
+    const lbl = document.getElementById("selectAllLabel");
+    const cnt = document.getElementById("selectAllCount");
+    if (lbl) {
+      const visCount = visibleRows.length;
+      const commentFilterVal = document.getElementById("groupCommentFilter").value;
+      const vqActive = document.querySelector(".vq-btn.active");
+      const vqMode = vqActive ? vqActive.id : "vqAll";
+
+      if (commentFilterVal) {
+        lbl.textContent = "SELECT COMMENT";
+      } else if (vqMode === "vqAvailable") {
+        lbl.textContent = "SELECT AVAILABLE";
+      } else if (vqMode === "vqInUse") {
+        lbl.textContent = "SELECT IN USE";
+      } else if (vqMode === "vqToday") {
+        lbl.textContent = "SELECT TODAY";
+      } else {
+        lbl.textContent = "SELECT PAGE";
+      }
+      if (cnt) cnt.textContent = visCount;
+    }
+  }
+
+  function submitPdfForm() {
+    const selected = document.querySelectorAll(".item-checkbox:checked");
+    if (selected.length === 0) return alert("Select users first!");
+
+    const container = document.getElementById("selected_users_inputs");
+    container.innerHTML = "";
+
+    selected.forEach(cb => {
+      const tr = cb.closest("tr") || cb.closest(".mobile-card");
+      const uid = (tr ? tr.getAttribute("data-id") : null) || cb.getAttribute("data-uid");
+      if (!uid) return;
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "user_ids[]";
+      input.value = uid;
+      container.appendChild(input);
+    });
+
+    document.getElementById("pdfForm").submit();
+  }
+
+  function exportSelectedCSV() {
+    const selected = document.querySelectorAll(".item-checkbox:checked");
+    if (selected.length === 0) return alert("Select users first!");
+
+    let csv = "Username,Profile,Comment\n";
+    selected.forEach(cb => {
+      const r = cb.closest("tr") || cb.closest(".mobile-card");
+      if (!r) return;
+      const commentText = r.querySelector(".comment-cell") ? r.querySelector(".comment-cell").textContent : "";
+      csv += `"${r.getAttribute("data-name") || cb.getAttribute("data-uid")}","${r.getAttribute("data-profile") || ""}","${commentText}"\n`;
+    });
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Export_${new Date().getTime()}.csv`;
+    a.click();
+    if (window.showToast) showToast('success', 'Exported', selected.length + ' users exported to CSV');
+  }
+
+  // -------------------------
+  // Delete Progress Modal
+  // -------------------------
+  // ===================================================
+  // DELETE SYSTEM — Cancel support + Row animations
+  // ===================================================
+  let _cancelDelete = false;
+
+  function showDeleteProgress(title, total) {
+    const existing = document.getElementById('mmDeleteProgressOverlay');
+    if (existing) existing.remove();
+    _cancelDelete = false;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'mmDeleteProgressOverlay';
+    overlay.style.cssText = [
+      'position:fixed;inset:0;',
+      'background:rgba(0,0,0,.65);',
+      'backdrop-filter:blur(10px);',
+      '-webkit-backdrop-filter:blur(10px);',
+      'z-index:12000;',
+      'display:flex;align-items:center;justify-content:center;',
+      'padding:16px;',
+      'animation:mmFadeIn .25s ease;',
+    ].join('');
+
+    overlay.innerHTML = `
+      <style>
+        @keyframes mmFadeIn{0%{opacity:0}100%{opacity:1}}
+        @keyframes mmSlideUp{0%{opacity:0;transform:translateY(20px)}100%{opacity:1;transform:translateY(0)}}
+        @keyframes mmDelPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(239,68,68,.4)}50%{transform:scale(1.1);box-shadow:0 0 0 10px rgba(239,68,68,0)}}
+        @keyframes mmDelShimmer{0%{background-position:-200% center}100%{background-position:200% center}}
+        @keyframes mmDelRowGlow{0%,100%{box-shadow:inset 0 0 0 2px rgba(239,68,68,0);background:transparent}50%{box-shadow:inset 0 0 0 2px rgba(239,68,68,.5);background:rgba(239,68,68,.07)}}
+        .mm-del-card{
+          background:var(--surface,#fff);
+          border-radius:22px;
+          max-width:420px;width:100%;
+          padding:30px 28px 24px;
+          box-shadow:0 30px 70px rgba(0,0,0,.4);
+          border:1px solid rgba(239,68,68,.2);
+          animation:mmSlideUp .35s cubic-bezier(.34,1.56,.64,1);
+        }
+        [data-bs-theme="dark"] .mm-del-card{background:#1a1f2e;border-color:rgba(239,68,68,.3);}
+        .mm-del-bar-wrap{background:var(--border,#e2e8f0);border-radius:99px;height:12px;overflow:hidden;margin-bottom:14px;position:relative;}
+        [data-bs-theme="dark"] .mm-del-bar-wrap{background:#2d3748;}
+        #mmDelBar{
+          height:100%;width:0%;
+          background:linear-gradient(90deg,#ef4444 0%,#f97316 50%,#ef4444 100%);
+          background-size:200% auto;
+          border-radius:99px;
+          transition:width .35s cubic-bezier(.4,0,.2,1);
+          animation:mmDelShimmer 1.5s linear infinite;
+        }
+        #mmDelBar.done{background:linear-gradient(90deg,#22c55e,#16a34a);animation:none;}
+        .mm-del-cancel{
+          width:100%;padding:11px;border-radius:12px;
+          font-weight:700;font-size:.88rem;border:none;cursor:pointer;
+          background:rgba(239,68,68,.1);color:#ef4444;
+          border:1.5px solid rgba(239,68,68,.25);
+          transition:all .2s;margin-top:4px;
+        }
+        .mm-del-cancel:hover:not(:disabled){background:rgba(239,68,68,.18);border-color:rgba(239,68,68,.5);}
+        .mm-del-cancel:disabled{opacity:.45;cursor:not-allowed;}
+        .mm-del-cancel.cancelling{background:rgba(245,158,11,.1);color:#f59e0b;border-color:rgba(245,158,11,.3);animation:mmDelPulse 1s infinite;}
+        .mm-row-deleting{animation:mmDelRowGlow 1s ease infinite !important;}
+      </style>
+
+      <div class="mm-del-card">
+        <!-- Icon -->
+        <div style="text-align:center;margin-bottom:20px;">
+          <div id="mmDelIconWrap" style="width:60px;height:60px;border-radius:50%;background:rgba(239,68,68,.12);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;animation:mmDelPulse 1.4s ease infinite;">
+            <i class="fa-solid fa-trash-can" style="font-size:24px;color:#ef4444;"></i>
+          </div>
+          <div style="font-weight:800;font-size:1.1rem;color:var(--text);">${title}</div>
+          <div id="mmDelStatus" style="font-size:.83rem;color:var(--muted,#64748b);margin-top:5px;min-height:20px;">Preparing...</div>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="mm-del-bar-wrap">
+          <div id="mmDelBar"></div>
+        </div>
+
+        <!-- Stats row -->
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.82rem;margin-bottom:16px;">
+          <div style="display:flex;gap:14px;">
+            <span style="color:var(--muted,#64748b);">
+              <i class="fa-solid fa-check-circle" style="color:#22c55e;margin-right:4px;"></i>
+              <span id="mmDelOkCount" style="font-weight:700;color:var(--text);">0</span> deleted
+            </span>
+            <span id="mmDelFailWrap" style="color:var(--muted,#64748b);display:none;">
+              <i class="fa-solid fa-times-circle" style="color:#ef4444;margin-right:4px;"></i>
+              <span id="mmDelFailCount" style="font-weight:700;color:#ef4444;">0</span> failed
+            </span>
+          </div>
+          <span id="mmDelPct" style="font-weight:800;font-size:.95rem;color:var(--text);">0%</span>
+        </div>
+
+        <!-- Current item being deleted -->
+        <div id="mmDelCurrent" style="
+          font-size:.78rem;color:var(--muted,#64748b);
+          text-align:center;margin-bottom:14px;min-height:18px;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+        "></div>
+
+        <!-- Mini item list (last 4 deleted) -->
+        <div id="mmDelLog" style="
+          max-height:80px;overflow:hidden;
+          font-size:.72rem;color:var(--muted,#64748b);
+          margin-bottom:18px;
+          display:flex;flex-direction:column-reverse;gap:3px;
+          min-height:0;
+        "></div>
+
+        <!-- Cancel button -->
+        <button id="mmDelCancelBtn" class="mm-del-cancel" onclick="cancelBulkDelete()">
+          <i class="fa-solid fa-ban me-2"></i>Cancel
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  function updateDeleteProgress(overlay, done, total, deleted, failed, currentName) {
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    const bar = document.getElementById('mmDelBar');
+    if (bar) {
+      bar.style.width = pct + '%';
+      if (done >= total) bar.classList.add('done');
+    }
+
+    const okEl = document.getElementById('mmDelOkCount');
+    if (okEl) okEl.textContent = deleted;
+
+    const failEl = document.getElementById('mmDelFailCount');
+    const failWrap = document.getElementById('mmDelFailWrap');
+    if (failEl) failEl.textContent = failed;
+    if (failWrap) failWrap.style.display = failed > 0 ? 'inline' : 'none';
+
+    const pctEl = document.getElementById('mmDelPct');
+    if (pctEl) pctEl.textContent = pct + '%';
+
+    const st = document.getElementById('mmDelStatus');
+    if (st) {
+      if (_cancelDelete && done < total) st.textContent = '⚠️ Cancelling after current batch...';
+      else if (done >= total) st.textContent = `✓ Done! ${deleted} deleted${failed > 0 ? ', ' + failed + ' failed' : ''}`;
+      else st.textContent = `Deleting ${done} of ${total}...`;
+    }
+
+    // current item label
+    const cur = document.getElementById('mmDelCurrent');
+    if (cur) {
+      if (currentName && done < total) {
+        cur.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1" style="font-size:.7rem;"></i> Next: ${currentName}`;
+      } else if (done >= total) {
+        cur.textContent = '';
+      }
+    }
+  }
+
+  function addDeleteLogEntry(name, success) {
+    const log = document.getElementById('mmDelLog');
+    if (!log) return;
+    const entry = document.createElement('div');
+    entry.style.cssText = 'display:flex;align-items:center;gap:6px;animation:mmFadeIn .2s ease;padding:2px 0;';
+    entry.innerHTML = success
+      ? `<i class="fa-solid fa-check" style="color:#22c55e;font-size:.65rem;flex-shrink:0;"></i><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>`
+      : `<i class="fa-solid fa-times" style="color:#ef4444;font-size:.65rem;flex-shrink:0;"></i><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ef4444;">${name} — failed</span>`;
+    log.prepend(entry);
+    // Keep only last 4
+    while (log.children.length > 4) log.removeChild(log.lastChild);
+  }
+
+  function cancelBulkDelete() {
+    _cancelDelete = true;
+    const btn = document.getElementById('mmDelCancelBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('cancelling');
+      btn.innerHTML = '<i class="fa-solid fa-hourglass-half fa-spin me-2"></i>Cancelling...';
+    }
+    const icon = document.getElementById('mmDelIconWrap');
+    if (icon) {
+      icon.style.background = 'rgba(245,158,11,.12)';
+      icon.innerHTML = '<i class="fa-solid fa-pause" style="font-size:22px;color:#f59e0b;"></i>';
+      icon.style.animation = 'none';
+    }
+  }
+
+  function closeDeleteProgress(overlay, delay) {
+    delay = delay !== undefined ? delay : 1200;
+    // disable cancel btn when done
+    const btn = document.getElementById('mmDelCancelBtn');
+    if (btn) { btn.disabled = true; btn.style.display = 'none'; }
+    const cur = document.getElementById('mmDelCurrent');
+    if (cur) cur.textContent = '';
+
+    setTimeout(() => {
+      overlay.style.transition = 'opacity .35s ease, transform .35s ease';
+      overlay.style.opacity = '0';
+      overlay.style.transform = 'scale(.96)';
+      setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 380);
+    }, delay);
+  }
+
+  // Row animate: highlight → shake → slide out
+  function animateRowDeleting(tr) {
+    tr.classList.add('mm-row-deleting');
+  }
+
+  function animateRowOut(tr) {
+    tr.classList.remove('mm-row-deleting');
+    return new Promise(function(resolve) {
+      // Step 1: red flash
+      tr.style.transition = 'background .15s ease';
+      tr.style.background = 'rgba(239,68,68,.12)';
+      setTimeout(function() {
+        // Step 2: slide left + fade + collapse
+        tr.style.transition = [
+          'opacity .4s ease',
+          'transform .4s cubic-bezier(.4,0,1,1)',
+          'max-height .35s ease .15s',
+          'padding .35s ease .15s',
+          'background .15s ease',
+        ].join(', ');
+        tr.style.overflow = 'hidden';
+        tr.style.opacity = '0';
+        tr.style.transform = 'translateX(-60px) scaleY(0.9)';
+        tr.style.maxHeight = tr.offsetHeight + 'px';
+        setTimeout(function() {
+          tr.style.maxHeight = '0';
+          tr.style.paddingTop = '0';
+          tr.style.paddingBottom = '0';
+          setTimeout(function() { if (tr.parentNode) tr.remove(); resolve(); }, 380);
+        }, 120);
+      }, 120);
+    });
+  }
+
+  function updateUserCountAfterDelete(n) {
+    const badge = document.getElementById('userCount');
+    if (badge) {
+      const cur = parseInt(badge.textContent) || 0;
+      badge.textContent = Math.max(0, cur - n);
+      badge.style.animation = 'none';
+      void badge.offsetHeight;
+      badge.style.animation = 'mmSlideUp .3s ease';
+    }
+  }
+
+  function checkEmptyTable() {
+    const tbody = document.querySelector('table tbody');
+    if (!tbody) return;
+    if (tbody.querySelectorAll('tr').length === 0) {
+      const wrap = tbody.closest('.table-responsive') || tbody.closest('div');
+      if (wrap) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.style.cssText = 'text-align:center;padding:60px 20px;animation:mmSlideUp .5s ease;';
+        emptyDiv.innerHTML = '<div style="font-size:3rem;margin-bottom:12px;">🗑️</div><div style="font-weight:700;font-size:1.1rem;margin-bottom:6px;">No users remaining</div><div style="color:var(--muted,#64748b);font-size:.9rem;">All selected users have been deleted.</div>';
+        wrap.parentElement.appendChild(emptyDiv);
+      }
+    }
+  }
+
+  // -------------------------
+  // Toggle user enable/disable (AJAX)
+  // -------------------------
+  function toggleUser(userId, action, btn) {
+    const routerId = '{{ router.id }}';
+    const url = `/hotspot/${routerId}/toggle_user/${userId}/${action}`;
+    fetch(url, {method: 'GET', headers: {'X-Requested-With': 'XMLHttpRequest'}})
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) {
+          const row = btn.closest('tr');
+          const isDisabling = (action === 'disable');
+          const icon = btn.querySelector('i');
+          btn.title = isDisabling ? 'Enable' : 'Disable';
+          if (icon) icon.className = isDisabling ? 'fa fa-play' : 'fa fa-pause';
+          btn.onclick = () => toggleUser(userId, isDisabling ? 'enable' : 'disable', btn);
+          // Update status display in same row
+          const statusDiv = row.querySelector('td:nth-child(4) div:last-child');
+          if (statusDiv) {
+            if (isDisabling) {
+              statusDiv.style.color = '#dc2626';
+              statusDiv.innerHTML = '<span class="status-dot bg-offline"></span>Disabled';
+            } else {
+              statusDiv.style.color = '#16a34a';
+              statusDiv.innerHTML = '<span class="status-dot bg-online"></span>Active';
+            }
+          }
+          if (window.showToast) showToast('success', isDisabling ? 'User Disabled' : 'User Enabled', '');
+        } else {
+          if (window.showToast) showToast('danger', 'Error', d.error || 'Failed to toggle user');
+        }
+      })
+      .catch(() => {
+        if (window.showToast) showToast('danger', 'Error', 'Network error');
+      });
+  }
+
+  // -------------------------
+  // Bypass login (IP binding)
+  // -------------------------
+  function addBypass(mac, name, btn) {
+    if (!mac || mac === '—' || mac === '') { alert('No MAC address for this user.'); return; }
+    if (!confirm(`Bypass login for ${name} (${mac})?`)) return;
+    fetch('{{ url_for("admin.add_hotspot_ip_binding") }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest'},
+      body: `router_id={{ router.id }}&mac_address=${encodeURIComponent(mac)}&binding_type=bypassed&comment=${encodeURIComponent(name)}&csrf_token={{ csrf_token() }}`
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        if (window.showToast) showToast('success', 'Bypass Added', `${name} can now connect without login`);
+      } else {
+        if (window.showToast) showToast('danger', 'Error', d.error || 'Failed to add bypass');
+      }
+    })
+    .catch(() => {
+      if (window.showToast) showToast('danger', 'Error', 'Network error');
+    });
+  }
+
+  // -------------------------
+  // Single user delete
+  // -------------------------
+  async function deleteSingleUser(uid, username, btn) {
+    const ok = window.mmConfirm ? await window.mmConfirm({
+      title: 'Delete User',
+      message: `Are you sure you want to delete <strong>${username}</strong>? This cannot be undone.`,
+      type: 'danger',
+      confirmText: 'Delete',
+    }) : confirm(`Delete user "${username}"?`);
+    if (!ok) return;
+
+    const tr = btn.closest('tr');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    animateRowDeleting(tr);
+
+    try {
+      const res = await fetch(`{{ url_for('admin.delete_hotspot_user', user_id='__UID__') }}`.replace('__UID__', uid));
+      if (res.ok) {
+        await animateRowOut(tr);
+        updateUserCountAfterDelete(1);
+        checkEmptyTable();
+        if (window.showToast) showToast('success', 'Deleted', `User "${username}" deleted.`);
+      } else {
+        tr.classList.remove('mm-row-deleting');
+        tr.style.background = '';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+        if (window.showToast) showToast('danger', 'Error', 'Could not delete user.');
+      }
+    } catch (e) {
+      tr.classList.remove('mm-row-deleting');
+      tr.style.background = '';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+      if (window.showToast) showToast('danger', 'Error', 'Network error.');
+    }
+  }
+
+  // -------------------------
+  // Bulk delete with progress + cancel
+  // -------------------------
+  async function bulkDeleteSelected() {
+    const selected = Array.from(document.querySelectorAll(".item-checkbox:checked"));
+    if (selected.length === 0) {
+      if (window.showToast) showToast('warning', 'No Selection', 'Select users to delete first');
+      return;
+    }
+
+    const ok = window.mmConfirm ? await window.mmConfirm({
+      title: 'Bulk Delete Users',
+      message: `Are you sure you want to delete <strong>${selected.length}</strong> selected hotspot user(s)? This cannot be undone.`,
+      type: 'danger',
+      confirmText: `Delete ${selected.length} users`,
+    }) : confirm(`Delete ${selected.length} users?`);
+
+    if (!ok) return;
+
+    const rows = selected.map(cb => {
+      const tr = cb.closest('tr');
+      return { tr, uid: tr.getAttribute('data-id'), name: tr.getAttribute('data-name') || tr.getAttribute('data-id') };
+    });
+    const total = rows.length;
+    const overlay = showDeleteProgress('Deleting Users...', total);
+    let deleted = 0, failed = 0, processed = 0;
+
+    const DELETE_URL = `{{ url_for('admin.delete_hotspot_user', user_id='__UID__') }}`;
+    const CONCURRENCY = 20; // max parallel requests
+
+    // Prevent accidental navigation while deleting
+    function _preventUnload(e) { e.preventDefault(); e.returnValue = ''; }
+    window.addEventListener('beforeunload', _preventUnload);
+
+    // Highlight all rows immediately
+    rows.forEach(r => animateRowDeleting(r.tr));
+    updateDeleteProgress(overlay, 0, total, 0, 0, rows[0] ? rows[0].name : '');
+
+    // --- Per-item progress: use a concurrent queue instead of fixed batches ---
+    let cursor = 0; // next index to dispatch
+
+    function processResult(idx, response) {
+      const { tr, name } = rows[idx];
+      const success = response && response.ok;
+      if (success) {
+        animateRowOut(tr);
+        addDeleteLogEntry(name, true);
+        deleted++;
+      } else {
+        tr.classList.remove('mm-row-deleting');
+        tr.style.background = 'rgba(239,68,68,.07)';
+        tr.style.boxShadow = 'inset 3px 0 0 #ef4444';
+        addDeleteLogEntry(name, false);
+        failed++;
+      }
+      processed++;
+      // Update progress immediately after each item
+      const nextIdx = processed < total ? processed : total - 1;
+      const nextName = (rows[nextIdx + 1] || {}).name || '';
+      updateDeleteProgress(overlay, processed, total, deleted, failed, nextName);
+    }
+
+    async function worker() {
+      while (true) {
+        if (_cancelDelete) return;
+        const idx = cursor++;
+        if (idx >= rows.length) return;
+        try {
+          const res = await fetch(DELETE_URL.replace('__UID__', rows[idx].uid), { keepalive: true });
+          processResult(idx, res);
+        } catch (e) {
+          processResult(idx, null);
+        }
+      }
+    }
+
+    // Launch CONCURRENCY workers in parallel
+    const workers = [];
+    for (let w = 0; w < Math.min(CONCURRENCY, total); w++) {
+      workers.push(worker());
+    }
+    await Promise.all(workers);
+    window.removeEventListener('beforeunload', _preventUnload);
+
+    // Final state
+    const finalStatus = document.getElementById('mmDelStatus');
+    if (finalStatus) {
+      if (_cancelDelete) {
+        finalStatus.textContent = `⚠️ Cancelled — ${deleted} deleted, ${total - deleted - failed} skipped`;
+        const icon = document.getElementById('mmDelIconWrap');
+        if (icon) { icon.style.background='rgba(245,158,11,.12)'; icon.innerHTML='<i class="fa-solid fa-ban" style="font-size:22px;color:#f59e0b;"></i>'; icon.style.animation='none'; }
+      } else {
+        finalStatus.textContent = `✓ Done! ${deleted} deleted${failed > 0 ? ', ' + failed + ' failed' : ''}`;
+        const icon = document.getElementById('mmDelIconWrap');
+        if (icon) { icon.style.background='rgba(34,197,94,.12)'; icon.innerHTML='<i class="fa-solid fa-check" style="font-size:22px;color:#22c55e;"></i>'; icon.style.animation='none'; }
+      }
+    }
+    const cur = document.getElementById('mmDelCurrent');
+    if (cur) cur.textContent = '';
+
+    // Ensure final progress shows 100%
+    updateDeleteProgress(overlay, total, total, deleted, failed, '');
+
+    closeDeleteProgress(overlay, _cancelDelete ? 1800 : 1400);
+
+    // Send one summary log entry to backend (batch = 1 log, not N logs)
+    if (!_cancelDelete && (deleted > 0 || failed > 0)) {
+      fetch('{{ url_for("admin.batch_delete_log") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          router_id: '{{ router.id }}',
+          router_name: '{{ router.name }}',
+          deleted, failed
+        })
+      }).catch(() => {});
+    }
+
+    setTimeout(function() {
+      if (window.showToast) {
+        if (_cancelDelete) showToast('warning', 'Cancelled', `${deleted} deleted, operation cancelled.`);
+        else if (failed === 0) showToast('success', 'Bulk Delete', `${deleted} user(s) deleted successfully.`);
+        else showToast('warning', 'Bulk Delete', `${deleted} deleted, ${failed} failed.`);
+      }
+      updateUserCountAfterDelete(deleted);
+      updateSelection();
+      setTimeout(checkEmptyTable, 500);
+    }, 800);
+  }
+
+  // -------------------------
+  // Edit modal
+  // -------------------------
+  function openEditModal(id, name, pass, profile, comment) {
+    document.getElementById('edit_user_id').value = id;
+    document.getElementById('edit_u_name').value = name;
+    document.getElementById('edit_u_pass').value = pass;
+    document.getElementById('edit_u_profile').value = profile;
+    document.getElementById('edit_u_comment').value = comment;
+    new bootstrap.Modal(document.getElementById('editModal')).show();
+  }
+
+  window.onload = () => {
+    applyCommentRules();
+    populateProfiles();
+    populateComments();
+    bindSortHeaders();
+    updateSortIcons();
+    filterData();
+    bindRowClick();
+  };
+
+  // ── Compact header on scroll ──────────────────────────────────────────
+  (function() {
+    const header = document.getElementById('stickyHeader');
+    let lastScroll = 0;
+    let compactThreshold = 60;
+
+    window.addEventListener('scroll', () => {
+      const scrollY = window.scrollY || window.pageYOffset;
+      if (scrollY > compactThreshold) {
+        header.classList.add('scrolled-compact');
+        document.body.classList.add('scrolled-compact');
+      } else {
+        header.classList.remove('scrolled-compact');
+        document.body.classList.remove('scrolled-compact');
+      }
+      lastScroll = scrollY;
+    }, { passive: true });
+  })();
+</script>
+
+
+  </main>
+</div>
+{% if request.endpoint != 'login' %}
+  {% include 'partials/footer_ads.html' %}
+{% endif %}
+
+<script>
+document.addEventListener("scroll", function () {
+  const nav = document.querySelector(".navbar");
+  if (!nav) return;
+  if (window.scrollY > 10) nav.classList.add("scrolled");
+  else nav.classList.remove("scrolled");
+});
+</script>
+
+</body>
+</html>
