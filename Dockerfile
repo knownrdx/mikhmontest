@@ -24,7 +24,7 @@ CMD ["gunicorn", \
      "--workers", "2", \
      "--worker-class", "gthread", \
      "--threads", "4", \
-     "--bind", "0.0.0.0:5100", \
+     "--bind", "0.0.0.0:5101", \
      "--timeout", "120", \
      "--forwarded-allow-ips", "*", \
      "run:app"]

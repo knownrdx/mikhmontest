@@ -5,6 +5,6 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "5100:5100"
+      - "5101:5101"
     env_file:
       - .env
